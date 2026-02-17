@@ -179,3 +179,8 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+Data/MAST_2026-02-16T1301/.DS_Store
+.DS_Store
+*.fits
+/Data
+/Documents
