@@ -10,6 +10,7 @@ def _ensure_dir(path):
     os.makedirs(path, exist_ok=True)
     return path
 
+
 def _capture_new_figures(fn):
     """Run fn() and return (fn_return_value, list_of_new_matplotlib_figure_numbers)."""
     before = set(plt.get_fignums())
@@ -18,11 +19,13 @@ def _capture_new_figures(fn):
     new = sorted(list(after - before))
     return out, new
 
-def _save_and_close_figs(fig_nums, outpaths, dpi=200):
+
+def _save_and_close_figs(fig_nums, outpaths, dpi=600):
     for fignum, path in zip(fig_nums, outpaths):
         fig = plt.figure(fignum)
         fig.savefig(path, dpi=dpi)
         plt.close(fig)
+
 
 def _stretch_for_display(img, goodmask=None):
     """Robust asinh stretch for display."""
@@ -40,6 +43,7 @@ def _stretch_for_display(img, goodmask=None):
     z = np.arcsinh((z - lo) / (hi - lo + 1e-30))
     return z
 
+
 def mge_model_counts_at_polar_points(radius_pix, angle_deg, sol):
     """
     Evaluate the *surface brightness* model (counts/pix) at polar points (radius, angle),
@@ -54,8 +58,8 @@ def mge_model_counts_at_polar_points(radius_pix, angle_deg, sol):
 
     th = np.deg2rad(np.asarray(angle_deg, float))
     r = np.asarray(radius_pix, float)
-    x = r * np.cos(th)
-    y = r * np.sin(th)
+    x = r * np.cos(th)  # major-axis coordinate
+    y = r * np.sin(th)  # minor-axis coordinate
 
     xx = x[:, None]
     yy = y[:, None]
@@ -65,15 +69,18 @@ def mge_model_counts_at_polar_points(radius_pix, angle_deg, sol):
     expo = -0.5 * (xx**2 + (yy**2) / q2) / sig2
     return np.sum(surf[None, :] * np.exp(expo), axis=1)
 
-def polar_points_to_image_xy(radius_pix, angle_deg, pa_deg, center_pix_rc):
+
+def polar_points_to_image_xy(radius_pix, angle_deg, pa_deg, center_pix_xy):
     """
     Convert (radius, angle from major axis) -> image (x,y) pixels for overlay.
-    center_pix_rc = (row, col) = (xc, yc) from mgefit.
-    Returns x=col, y=row for imshow(origin='lower').
+
+    center_pix_xy = (x, y) in pixel coordinates:
+      x = column index, y = row index
+    consistent with imshow(origin='lower').
+
+    Returns x_img, y_img (same convention).
     """
-    xc_row, yc_col = center_pix_rc
-    x0 = float(yc_col)
-    y0 = float(xc_row)
+    x0, y0 = map(float, center_pix_xy)
 
     r = np.asarray(radius_pix, float)
     th = np.deg2rad(np.asarray(angle_deg, float))
@@ -85,31 +92,33 @@ def polar_points_to_image_xy(radius_pix, angle_deg, pa_deg, center_pix_rc):
     y_img = y0 + xp * np.cos(pa) - yp * np.sin(pa)
     return x_img, y_img
 
-def build_mge_model_image_cutout(img_shape, sol, pa_deg, center_pix_rc,
-                                 half_size_pix=400, oversample=1):
+
+def build_mge_model_image_cutout(
+    img_shape, sol, pa_deg, center_pix_xy, half_size_pix=400, oversample=1
+):
     """
     Build a model image cutout (counts/pix) from the MGE solution.
     NOTE: If you supplied a PSF to fit_sectors, sol is deconvolved.
+
+    center_pix_xy = (x, y) = (col, row), consistent with imshow(origin='lower').
     """
     ny, nx = img_shape
-    xc_row, yc_col = center_pix_rc
-    x0 = float(yc_col)
-    y0 = float(xc_row)
+    x0, y0 = map(float, center_pix_xy)
 
     x1 = int(max(0, np.floor(x0 - half_size_pix)))
     x2 = int(min(nx, np.ceil(x0 + half_size_pix)))
     y1 = int(max(0, np.floor(y0 - half_size_pix)))
     y2 = int(min(ny, np.ceil(y0 + half_size_pix)))
 
-    xs = np.arange(x1, x2, 1/oversample)
-    ys = np.arange(y1, y2, 1/oversample)
+    xs = np.arange(x1, x2, 1 / oversample)
+    ys = np.arange(y1, y2, 1 / oversample)
     X, Y = np.meshgrid(xs, ys)
 
     pa = np.deg2rad(pa_deg)
     dx = X - x0
     dy = Y - y0
-    xp =  dx * np.sin(pa) + dy * np.cos(pa)
-    yp =  dx * np.cos(pa) - dy * np.sin(pa)
+    xp = dx * np.sin(pa) + dy * np.cos(pa)
+    yp = dx * np.cos(pa) - dy * np.sin(pa)
 
     total_counts, sigma, q = sol
     total_counts = np.asarray(total_counts, float)
@@ -119,14 +128,16 @@ def build_mge_model_image_cutout(img_shape, sol, pa_deg, center_pix_rc,
 
     model = np.zeros_like(X, dtype=float)
     for s0, sj, qj in zip(surf, sigma, q):
-        expo = -0.5 * (xp**2 + (yp**2) / (qj*qj)) / (sj*sj)
+        expo = -0.5 * (xp**2 + (yp**2) / (qj * qj)) / (sj * sj)
         model += s0 * np.exp(expo)
 
     if oversample > 1:
         oy = (y2 - y1) * oversample
         ox = (x2 - x1) * oversample
         model = model[:oy, :ox]
-        model = model.reshape((y2 - y1), oversample, (x2 - x1), oversample).mean(axis=(1, 3))
+        model = model.reshape((y2 - y1), oversample, (x2 - x1), oversample).mean(
+            axis=(1, 3)
+        )
 
     return (x1, x2, y1, y2), model
 
@@ -138,7 +149,7 @@ def fit_mge_from_f200(
     img_f200,
     dust_mask,
     *,
-    pixel_scale=1.0,                 # arcsec/pix
+    pixel_scale=1.0,  # arcsec/pix
     dust_mask_is_bad=True,
     subtract_sky=False,
     find_fraction=0.03,
@@ -154,19 +165,20 @@ def fit_mge_from_f200(
     plot=True,
     quiet=False,
     # NEW: checkplot saving
-    checkplot_dir=None,              # if None -> no files saved
+    checkplot_dir=None,  # if None -> no files saved
     prefix="f200",
-    dpi=300,
+    dpi=600,
     max_points_overlay=200000,
     contour_half_size_arcsec=80,
     contour_oversample=1,
+    negative=False,
 ):
     """
     Fit an MGE model to a 2D F200 image, excluding dusty pixels via a mask,
     and save checkplots immediately after each stage.
 
     If checkplot_dir is not None:
-      - saves native mgefit diagnostic figs for find_galaxy / sectors_photometry / fit_sectors (when plot=True)
+      - saves native mgefit diagnostic figs for sectors_photometry / fit_sectors (when plot=True)
       - saves custom overlays + radial profile + residuals + contours
     """
     img = np.asarray(img_f200, dtype=float)
@@ -201,28 +213,40 @@ def fit_mge_from_f200(
     if checkplot_dir is not None:
         _ensure_dir(checkplot_dir)
 
-    
     # hardcoded geometry from previous find_galaxy run
-    xc, yc = 7538, 7333#f.xpeak, f.ypeak
-    eps = 0.633 #f.eps
-    pa = 89.2 #f.pa
+    # IMPORTANT CONVENTION HERE (consistent with matplotlib imshow):
+    #   xc = x center in pixels (column index)
+    #   yc = y center in pixels (row index)
+    xc, yc = 7538, 7333  # f.xpeak, f.ypeak
+    eps = 0.7060956459920877#0.633  # f.eps
+    pa = 90.78185872429874#89.2  # f.pa
+    theta_deg = -0.7818587242987439
 
 
+    print(f'Galaxy center found at {xc}, {yc}')
     if checkplot_dir is not None:
-
-
         # Custom geometry overlay
         qbar = 1.0 - eps
 
-       
         fig, ax = plt.subplots(figsize=(10, 7))
-        #ax.imshow(mg_help._stretch_for_display(img, goodmask=goodmask), origin="lower")
-        ax.imshow(img_for_find, origin="lower", cmap='inferno',
-                vmin=np.percentile(img_for_find, 0.1), vmax=np.percentile(img_for_find, 99.99))
+        ax.imshow(
+            img_for_find,
+            origin="lower",
+            cmap="inferno",
+            vmin=np.percentile(img_for_find, 0.1),
+            vmax=np.percentile(img_for_find, 99.99),
+        )
         try:
-            ax.contour((~goodmask).astype(float), levels=[0.5], linewidths=0.8, alpha=0.8, origin="lower")
+            ax.contour(
+                (~goodmask).astype(float),
+                levels=[0.5],
+                linewidths=0.8,
+                alpha=0.8,
+                origin="lower",
+            )
         except Exception:
             pass
+
         ax.plot([xc], [yc], marker="+", markersize=14)
 
         L_arcsec = 20.0
@@ -235,23 +259,29 @@ def fit_mge_from_f200(
         for a_arc in [5.0, 15.0, 30.0]:
             a_pix = a_arc / pixel_scale
             b_pix = a_pix * qbar
-            e = Ellipse((xc, yc), width=2*a_pix, height=2*b_pix, angle=(90.0 - pa),
-                        fill=False, linewidth=1.0)
+            e = Ellipse(
+                (xc, yc),
+                width=2 * a_pix,
+                height=2 * b_pix,
+                angle=(90.0 - pa),
+                fill=False,
+                linewidth=1.0,
+            )
             ax.add_patch(e)
 
-        #ax.set_title(f"{prefix}: geometry overlay  (PA={pa:.2f} deg, eps={eps:.3f})")
         ax.set_xlabel("x (pix)")
         ax.set_ylabel("y (pix)")
-        #ax.set_xlim(zm_region[0][0], zm_region[0][1])
-        #ax.set_ylim(zm_region[1][0], zm_region[1][1])
         fig.tight_layout()
-        fig.savefig(os.path.join(checkplot_dir, f"{prefix}_01_geometry_overlay.png"), dpi=dpi)
+        fig.savefig(
+            os.path.join(checkplot_dir, f"{prefix}_01_geometry_overlay.png"), dpi=dpi
+        )
         plt.close(fig)
-
+        
 
     # -------------------------
     # 2) sectors_photometry + save plots right away
     # -------------------------
+
     def _do_sectors():
         return mge.sectors_photometry(
             img_work,
@@ -262,9 +292,9 @@ def fit_mge_from_f200(
             mask=goodmask,
             n_sectors=n_sectors,
             minlevel=minlevel,
-            plot=plot
+            plot=plot,
         )
-
+    print('Performing sector photometry')
     s, new_figs = _capture_new_figures(_do_sectors)
 
     if checkplot_dir is not None:
@@ -287,17 +317,27 @@ def fit_mge_from_f200(
 
         fig, ax = plt.subplots(figsize=(7, 7))
         ax.imshow(_stretch_for_display(img, goodmask=goodmask), origin="lower")
-        try:
-            ax.contour((~goodmask).astype(float), levels=[0.5], linewidths=0.8, alpha=0.8, origin="lower", colors='orange')
-        except Exception:
-            pass
-        ax.scatter(x_img[idx], y_img[idx], s=1, alpha=0.4, color='orange')
-        ax.plot([yc], [xc], marker="+", markersize=14)
+        # try:
+        #     ax.contour(
+        #         (~goodmask).astype(float),
+        #         levels=[0.5],
+        #         linewidths=0.8,
+        #         alpha=0.8,
+        #         origin="lower",
+        #         colors="orange",
+        #     )
+        # except Exception:
+        #     pass
+        ax.scatter(x_img[idx], y_img[idx], s=1, alpha=0.4, color="orange")
+        ax.plot([xc], [yc], marker="+", markersize=14)
         ax.set_title(f"{prefix}: sampled photometry points (sectors)")
         ax.set_xlabel("x (pix)")
         ax.set_ylabel("y (pix)")
         fig.tight_layout()
-        fig.savefig(os.path.join(checkplot_dir, f"{prefix}_11_sectors_sampled_points.png"), dpi=dpi)
+        fig.savefig(
+            os.path.join(checkplot_dir, f"{prefix}_11_sectors_sampled_points.png"),
+            dpi=dpi,
+        )
         plt.close(fig)
 
         # Custom: sector-by-sector radial profiles (data only)
@@ -329,7 +369,10 @@ def fit_mge_from_f200(
     # -------------------------
     def _do_fit():
         return mge.fit_sectors(
-            s.radius, s.angle, s.counts, eps,
+            s.radius,
+            s.angle,
+            s.counts,
+            eps,
             linear=linear,
             ngauss=ngauss,
             qbounds=qbounds,
@@ -339,9 +382,11 @@ def fit_mge_from_f200(
             scale=pixel_scale,
             plot=plot,
             quiet=quiet,
-            bulge_disk=True,
+            bulge_disk=False,
+            negative=negative,
         )
 
+    print('Fitting sectors. This might take a while')
     m, new_figs = _capture_new_figures(_do_fit)
 
     if checkplot_dir is not None:
@@ -367,13 +412,13 @@ def fit_mge_from_f200(
 
         y_major = mge_model_counts_at_polar_points(rgrid, np.zeros_like(rgrid), m.sol)
         y_minor = mge_model_counts_at_polar_points(rgrid, np.full_like(rgrid, 90.0), m.sol)
-        y_45    = mge_model_counts_at_polar_points(rgrid, np.full_like(rgrid, 45.0), m.sol)
+        y_45 = mge_model_counts_at_polar_points(rgrid, np.full_like(rgrid, 45.0), m.sol)
 
-        fig, ax = plt.subplots(figsize=(7.5, 5.5))
-        ax.scatter(r_arc, y_dat, s=6, alpha=0.35, label="data (all sectors)")
-        ax.plot(rgrid_arc, y_major, linewidth=1.8, label="model (major axis)")
-        ax.plot(rgrid_arc, y_minor, linewidth=1.8, label="model (minor axis)")
-        ax.plot(rgrid_arc, y_45,    linewidth=1.2, label="model (45 deg)")
+        fig, ax = plt.subplots(figsize=(15, 10))
+        ax.scatter(r_arc, y_dat, s=5, alpha=0.35, label="data (all sectors)")
+        ax.plot(rgrid_arc, y_major, linewidth=1, label="model (major axis)")
+        ax.plot(rgrid_arc, y_minor, linewidth=0.8, label="model (minor axis)")
+        ax.plot(rgrid_arc, y_45, linewidth=1, label="model (45 deg)")
         ax.set_xlabel("R (arcsec)")
         ax.set_ylabel("counts / pix")
         if np.nanmin(y_dat[y_dat > 0]) > 0:
@@ -381,7 +426,10 @@ def fit_mge_from_f200(
         ax.set_title(f"{prefix}: radial profile data vs model  (absdev={m.absdev:.4f})")
         ax.legend(fontsize=9)
         fig.tight_layout()
-        fig.savefig(os.path.join(checkplot_dir, f"{prefix}_21_radial_profile_data_vs_model.png"), dpi=dpi)
+        fig.savefig(
+            os.path.join(checkplot_dir, f"{prefix}_21_radial_profile_data_vs_model.pdf"),
+            dpi=dpi,
+        )
         plt.close(fig)
 
         # Custom: 1 - yfit/y vs radius
@@ -389,20 +437,32 @@ def fit_mge_from_f200(
         frac = np.full_like(y_dat, np.nan, dtype=float)
         frac[good] = 1.0 - (y_fit_pts[good] / y_dat[good])
 
-        fig, ax = plt.subplots(figsize=(7.5, 4.8))
-        ax.scatter(r_arc[good], frac[good], s=6, alpha=0.35)
+        fig, ax = plt.subplots(figsize=(10, 7))
+        ax.scatter(r_arc[good], frac[good], s=1, alpha=0.5)
         ax.axhline(0.0, linewidth=1.0)
         ax.set_xlabel("R (arcsec)")
         ax.set_ylabel(r"$1 - y_{\rm fit}/y$")
         ax.set_title(f"{prefix}: fractional residuals")
         fig.tight_layout()
-        fig.savefig(os.path.join(checkplot_dir, f"{prefix}_22_frac_residual_1_minus_yfit_over_y.png"), dpi=dpi)
+        fig.savefig(
+            os.path.join(checkplot_dir, f"{prefix}_22_frac_residual_1_minus_yfit_over_y.pdf"),
+            dpi=dpi,
+        )
         plt.close(fig)
+
+        # MGE fit contours
+
+        mge.print_contours(img, theta_deg, xc, yc, m.sol, scale=scale,
+                       sigmapsf=sigmapsf, normpsf=normpsf, binning=9, 
+                       minlevel=minlevel)
 
         # Custom: model contours over data + data/model ratio (cutout)
         half_size_pix = int(max(10, contour_half_size_arcsec / pixel_scale))
         bounds, model_cut = build_mge_model_image_cutout(
-            img.shape, m.sol, float(pa), (xc, yc),
+            img.shape,
+            m.sol,
+            float(pa),
+            (xc, yc),
             half_size_pix=half_size_pix,
             oversample=contour_oversample,
         )
@@ -417,30 +477,49 @@ def fit_mge_from_f200(
             levels = np.unique(levels[np.isfinite(levels)])
             if levels.size >= 3:
                 fig, ax = plt.subplots(figsize=(7, 7))
-                ax.imshow(_stretch_for_display(data_cut, goodmask=good_cut), origin="lower",
-                          extent=[x1, x2, y1, y2])
-                ax.contour(model_cut, levels=levels, linewidths=1.0,
-                           origin="lower", extent=[x1, x2, y1, y2])
-                ax.plot([yc], [xc], marker="+", markersize=14)
+                ax.imshow(
+                    _stretch_for_display(data_cut, goodmask=good_cut),
+                    origin="lower",
+                    extent=[x1, x2, y1, y2],
+                )
+                ax.contour(
+                    model_cut,
+                    levels=levels,
+                    linewidths=1.0,
+                    origin="lower",
+                    extent=[x1, x2, y1, y2],
+                )
+                ax.plot([xc], [yc], marker="+", markersize=14)
                 ax.set_title(f"{prefix}: model contours over data (cutout)")
                 ax.set_xlabel("x (pix)")
                 ax.set_ylabel("y (pix)")
                 fig.tight_layout()
-                fig.savefig(os.path.join(checkplot_dir, f"{prefix}_23_model_contours_over_data.png"), dpi=dpi)
+                fig.savefig(
+                    os.path.join(checkplot_dir, f"{prefix}_23_model_contours_over_data.png"),
+                    dpi=dpi,
+                )
                 plt.close(fig)
 
                 fig, ax = plt.subplots(figsize=(7, 7))
                 with np.errstate(divide="ignore", invalid="ignore"):
                     ratio = data_cut / model_cut
-                ax.imshow(_stretch_for_display(ratio, goodmask=good_cut), origin="lower",
-                          extent=[x1, x2, y1, y2])
-                ax.plot([yc], [xc], marker="+", markersize=14)
+                ax.imshow(
+                    _stretch_for_display(ratio, goodmask=good_cut),
+                    origin="lower",
+                    extent=[x1, x2, y1, y2],
+                )
+                ax.plot([xc], [yc], marker="+", markersize=14)
                 ax.set_title(f"{prefix}: data/model ratio (cutout)")
                 ax.set_xlabel("x (pix)")
                 ax.set_ylabel("y (pix)")
                 fig.tight_layout()
-                fig.savefig(os.path.join(checkplot_dir, f"{prefix}_24_data_over_model_ratio.png"), dpi=dpi)
+                fig.savefig(
+                    os.path.join(checkplot_dir, f"{prefix}_24_data_over_model_ratio.png"),
+                    dpi=dpi,
+                )
                 plt.close(fig)
+
+            
 
     # -------------------------
     # Package outputs
@@ -458,34 +537,51 @@ def fit_mge_from_f200(
         "sky_sigma": sky_sigma,
         "sectors": s,
         "mgefit": m,
-        "table_cols": ["surf_counts_per_pix", "sigma_pix", "sigma_arcsec", "q_obs", "total_counts"],
+        "table_cols": [
+            "surf_counts_per_pix",
+            "sigma_pix",
+            "sigma_arcsec",
+            "q_obs",
+            "total_counts",
+        ],
         "table": table,
         "checkplot_dir": checkplot_dir,
     }
 
+
 if __name__ == "__main__":
-    img_f200 = fits.open('/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/IFU/photometry/f200w_ifu_coadd_masked.fits')[0].data
-    dust_mask = fits.open('/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/dust_mask/f200_mask_1.fits')[0].data
+    img_f200 = fits.open(
+        "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/IFU/photometry/f200w_ifu_coadd_masked.fits"
+    )[0].data
+    dust_mask = fits.open(
+        "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/dust_mask/f200_mask_1.fits"
+    )[0].data
 
     nan_mask = np.isnan(img_f200)
     if np.any(nan_mask):
-        print(f"Found {np.sum(nan_mask)} NaN pixels in the image. Replacing with 0 and adding to dust mask.")
+        print(
+            f"Found {np.sum(nan_mask)} NaN pixels in the image. Replacing with 0 and adding to dust mask."
+        )
         img_f200[nan_mask] = 0.0
         dust_mask = dust_mask | nan_mask
 
-    checkplot_dir = "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/mge_fixed_center"
+    checkplot_dir = "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/mge_fixed_center_linear"
 
     res = fit_mge_from_f200(
-        img_f200, dust_mask,
+        img_f200,
+        dust_mask,
         pixel_scale=0.031,
         subtract_sky=False,
-        linear=False,
-        ngauss=24,
+        linear=True,
+        ngauss=800,
         plot=True,
         checkplot_dir=checkplot_dir,
         prefix="sombrero_f200",
         contour_half_size_arcsec=80,
         contour_oversample=1,
+        qbounds = None,
+        n_sectors=60,
+        negative=True, # allowing negative gaussians to see if we can get a better fit
     )
 
     print("Center (pix):", res["center_pix"])
@@ -495,5 +591,6 @@ if __name__ == "__main__":
     print(res["table"])
 
     import pickle
-    with open(os.path.join(checkplot_dir, 'mge_fit_results.pkl'), 'wb') as f:
+
+    with open(os.path.join(checkplot_dir, "mge_fit_results.pkl"), "wb") as f:
         pickle.dump(res, f)
