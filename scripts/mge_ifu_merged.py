@@ -236,7 +236,7 @@ def fit_mge_from_f200(
             ax.contour((~goodmask).astype(float), levels=[0.5], linewidths=0.8, alpha=0.8, origin="lower")
         except Exception:
             pass
-        ax.plot([yc], [xc], marker="+", markersize=14)
+        ax.plot([xc], [yc], marker="+", markersize=14)
 
         L_arcsec = 20.0
         L_pix = L_arcsec / pixel_scale
@@ -263,6 +263,11 @@ def fit_mge_from_f200(
     xc, yc = f.xpeak, f.ypeak
     eps = f.eps
     pa = f.pa
+
+    print(f"Found galaxy center at (row, col) = ({xc:.2f}, {yc:.2f}), PA={pa:.2f} deg, eps={eps:.3f}, theta={f.theta:.2f} deg")
+    print(f"Sky mean: {sky_mean:.3f}  Sky sigma: {sky_sigma:.3f}" if subtract_sky else "No sky subtraction applied.")
+    print("Proceeding to sectors_photometry with n_sectors =", n_sectors)
+
 
     # -------------------------
     # 2) sectors_photometry + save plots right away
@@ -414,6 +419,10 @@ def fit_mge_from_f200(
         fig.savefig(os.path.join(checkplot_dir, f"{prefix}_22_frac_residual_1_minus_yfit_over_y.png"), dpi=dpi)
         plt.close(fig)
 
+        # mge.print_contours(img, f.theta, xc, yc, m.sol, scale=pixel_scale,
+        #                sigmapsf=sigmapsf, normpsf=normpsf, binning=9, 
+        #                minlevel=minlevel)
+
         # Custom: model contours over data + data/model ratio (cutout)
         half_size_pix = int(max(10, contour_half_size_arcsec / pixel_scale))
         bounds, model_cut = build_mge_model_image_cutout(
@@ -488,19 +497,20 @@ if __name__ == "__main__":
         img_f200[nan_mask] = 0.0
         dust_mask = dust_mask | nan_mask
 
-    checkplot_dir = "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/mge_merged_ifu"
+    checkplot_dir = "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/mge_merged_ifu_small"
 
     res = fit_mge_from_f200(
         img_f200, dust_mask,
         pixel_scale=0.031,
         subtract_sky=False,
         linear=False,
-        ngauss=24,
+        ngauss=10,
         plot=True,
         checkplot_dir=checkplot_dir,
         prefix="sombrero_f200",
         contour_half_size_arcsec=80,
         contour_oversample=1,
+        n_sectors=10,
     )
 
     print("Center (pix):", res["center_pix"])
