@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import mgefit as mge
-from astropy.io import fits
 
 
 def _ensure_dir(path):
@@ -59,11 +58,11 @@ def mge_model_counts_at_polar_points(radius_pix, angle_deg, sol):
 
     th = np.deg2rad(np.asarray(angle_deg, float))
     r = np.asarray(radius_pix, float)
-    x = r * np.cos(th)
-    y = r * np.sin(th)
+    xp = r * np.cos(th)
+    yp = r * np.sin(th)
 
-    xx = x[:, None]
-    yy = y[:, None]
+    xx = xp[:, None]
+    yy = yp[:, None]
     sig2 = sigma[None, :] ** 2
     q2 = q[None, :] ** 2
 
@@ -75,12 +74,14 @@ def polar_points_to_image_xy(radius_pix, angle_deg, pa_deg, center_pix_xy):
     """
     Convert (radius, angle from major axis) -> image (x,y) pixels for overlay.
 
-    center_pix_xy = (xc, yc) = (x, y) = (col, row).
+    Public convention:
+        center_pix_xy = (xc, yc) = (x, y) = (col, row)
+
     Returns x=col, y=row for imshow(origin='lower').
     """
     xc, yc = center_pix_xy
-    x0 = float(xc)
-    y0 = float(yc)
+    xc = float(xc)
+    yc = float(yc)
 
     r = np.asarray(radius_pix, float)
     th = np.deg2rad(np.asarray(angle_deg, float))
@@ -88,8 +89,9 @@ def polar_points_to_image_xy(radius_pix, angle_deg, pa_deg, center_pix_xy):
     yp = r * np.sin(th)
 
     pa = np.deg2rad(pa_deg)
-    x_img = x0 + xp * np.sin(pa) + yp * np.cos(pa)
-    y_img = y0 + xp * np.cos(pa) - yp * np.sin(pa)
+
+    x_img = xc + xp * np.sin(pa) - yp * np.cos(pa)
+    y_img = yc + xp * np.cos(pa) + yp * np.sin(pa)
     return x_img, y_img
 
 
@@ -97,27 +99,30 @@ def build_mge_model_image_cutout(img_shape, sol, pa_deg, center_pix_xy,
                                  half_size_pix=400, oversample=1):
     """
     Build a model image cutout (counts/pix) from the MGE solution.
-    NOTE: If you supplied a PSF to fit_sectors, sol is deconvolved.
+
+    Public convention:
+        center_pix_xy = (xc, yc) = (x, y) = (col, row)
     """
     ny, nx = img_shape
     xc, yc = center_pix_xy
-    x0 = float(xc)
-    y0 = float(yc)
+    xc = float(xc)
+    yc = float(yc)
 
-    x1 = int(max(0, np.floor(x0 - half_size_pix)))
-    x2 = int(min(nx, np.ceil(x0 + half_size_pix)))
-    y1 = int(max(0, np.floor(y0 - half_size_pix)))
-    y2 = int(min(ny, np.ceil(y0 + half_size_pix)))
+    x1 = int(max(0, np.floor(xc - half_size_pix)))
+    x2 = int(min(nx, np.ceil(xc + half_size_pix)))
+    y1 = int(max(0, np.floor(yc - half_size_pix)))
+    y2 = int(min(ny, np.ceil(yc + half_size_pix)))
 
     xs = np.arange(x1, x2, 1 / oversample)
     ys = np.arange(y1, y2, 1 / oversample)
     X, Y = np.meshgrid(xs, ys)
 
+    dx = X - xc
+    dy = Y - yc
     pa = np.deg2rad(pa_deg)
-    dx = X - x0
-    dy = Y - y0
+
     xp = dx * np.sin(pa) + dy * np.cos(pa)
-    yp = dx * np.cos(pa) - dy * np.sin(pa)
+    yp = -dx * np.cos(pa) + dy * np.sin(pa)
 
     total_counts, sigma, q = sol
     total_counts = np.asarray(total_counts, float)
@@ -141,13 +146,13 @@ def build_mge_model_image_cutout(img_shape, sol, pa_deg, center_pix_xy,
 
 class MGEFitter:
     """
-    Resumable MGE fitting pipeline with per-stage disk caching.
+    Public convention used everywhere in this wrapper:
+        center = (x, y) = (col, row)
 
-    You can either:
-      1) use run_find() to get geometry from mge.find_galaxy, or
-      2) manually provide geometry via:
-            center=(xc, yc), pa_deg=..., eps=..., theta_deg=...
-         and skip run_find().
+    NumPy indexing:
+        img[y, x]
+
+    mgefit convention is adapted internally at the call boundary.
     """
 
     def __init__(
@@ -177,11 +182,12 @@ class MGEFitter:
         max_points_overlay=200000,
         contour_half_size_arcsec=80,
         contour_oversample=1,
-        # NEW: manual geometry
-        center=None,          # (xc, yc)
+        center=None,          # public convention: (x, y)
         pa_deg=None,
         eps=None,
         theta_deg=None,
+        allow_negative=False,
+        bulge_disk=False,
     ):
         self.img = np.asarray(img_f200, dtype=float)
         if self.img.ndim != 2:
@@ -215,13 +221,14 @@ class MGEFitter:
         self.max_points_overlay = max_points_overlay
         self.contour_half_size_arcsec = contour_half_size_arcsec
         self.contour_oversample = contour_oversample
+        self.allow_negative = allow_negative
+        self.bulge_disk = bulge_disk
 
         if self.checkplot_dir is not None:
             _ensure_dir(self.checkplot_dir)
         if self.cache_dir is not None:
             _ensure_dir(self.cache_dir)
 
-        # keep your original goodmask convention unchanged
         self.goodmask = (~self.mask) if self.dust_mask_is_bad else self.mask
 
         self.img_for_find = self.img.copy()
@@ -240,13 +247,18 @@ class MGEFitter:
             )
             self.img_work = self.img_work - self.sky_mean
             self.img_for_find = self.img_for_find - self.sky_mean
+            
+            # Use half the sky RMS as the minimum photometry flux threshold.
+            self.minlevel = self.sky_sigma / 2
+            print(f"Sky mean: {self.sky_mean:.3f}  Sky sigma: {self.sky_sigma:.3f}  Setting minlevel to {self.minlevel:.3f}")
+        
+       
 
         self.find_result = None
         self.sectors_result = None
         self.fit_result = None
 
-        # NEW: manual geometry storage
-        self._manual_center = None
+        self._manual_center = None    # always public (x, y)
         self._manual_pa = None
         self._manual_eps = None
         self._manual_theta = None
@@ -255,26 +267,33 @@ class MGEFitter:
             self.set_manual_geometry(center=center, pa_deg=pa_deg, eps=eps, theta_deg=theta_deg)
 
     # -------------------------
+    # conversion helpers
+    # -------------------------
+    @staticmethod
+    def _find_result_to_public_xy(find_result):
+        """
+        Convert find_galaxy output to public convention (x, y)=(col, row).
+        """
+        return float(find_result.ypeak), float(find_result.xpeak)
+
+    @staticmethod
+    def _public_xy_to_mge_xy(center_xy):
+        """
+        Convert public (x, y)=(col, row) to the convention expected by
+        mge.sectors_photometry, which follows mgefit's internal indexing.
+        """
+        x_public, y_public = center_xy
+        mge_xc = float(y_public)   # first index / row
+        mge_yc = float(x_public)   # second index / column
+        return mge_xc, mge_yc
+
+    # -------------------------
     # manual geometry
     # -------------------------
     def set_manual_geometry(self, *, center=None, pa_deg=None, eps=None, theta_deg=None):
-        """
-        Set manual geometry so run_find() is not required.
-
-        Parameters
-        ----------
-        center : tuple
-            (xc, yc) = (x, y) pixel center
-        pa_deg : float
-            Position angle in degrees
-        eps : float
-            Ellipticity = 1 - q
-        theta_deg : float or None
-            Optional theta used by mge.print_contours. If None, defaults to pa_deg.
-        """
         if center is not None:
             if len(center) != 2:
-                raise ValueError("center must be a 2-element tuple/list (xc, yc)")
+                raise ValueError("center must be a 2-element tuple/list (x, y)")
             self._manual_center = (float(center[0]), float(center[1]))
 
         if pa_deg is not None:
@@ -287,7 +306,6 @@ class MGEFitter:
             self._manual_theta = float(theta_deg)
 
     def clear_manual_geometry(self):
-        """Remove manual geometry and go back to using run_find()."""
         self._manual_center = None
         self._manual_pa = None
         self._manual_eps = None
@@ -334,7 +352,7 @@ class MGEFitter:
             return self._manual_center[0]
         if self.find_result is None:
             return None
-        return float(self.find_result.xpeak)
+        return self._find_result_to_public_xy(self.find_result)[0]
 
     @property
     def yc(self):
@@ -342,7 +360,7 @@ class MGEFitter:
             return self._manual_center[1]
         if self.find_result is None:
             return None
-        return float(self.find_result.ypeak)
+        return self._find_result_to_public_xy(self.find_result)[1]
 
     @property
     def pa(self):
@@ -412,7 +430,7 @@ class MGEFitter:
             self._save_cache("find", {"find_result": self.find_result})
 
         print(
-            f"Found galaxy center at (x, y) = ({self.xc:.2f}, {self.yc:.2f}), "
+            f"Found galaxy center at public (x, y) = ({self.xc:.2f}, {self.yc:.2f}), "
             f"PA={self.pa:.2f} deg, eps={self.eps:.3f}, theta={self.theta:.2f} deg"
         )
         print(
@@ -489,13 +507,17 @@ class MGEFitter:
 
                 return self.sectors_result
 
+        # Public center is (x, y)=(col, row).
+        # Translate at the library boundary.
+        mge_xc, mge_yc = self._public_xy_to_mge_xy((self.xc, self.yc))
+
         def _do_sectors():
             return mge.sectors_photometry(
                 self.img_work,
                 eps=self.eps,
                 ang=self.pa,
-                xc=self.xc,
-                yc=self.yc,
+                xc=mge_xc,
+                yc=mge_yc,
                 mask=self.goodmask,
                 n_sectors=self.n_sectors,
                 minlevel=self.minlevel,
@@ -532,6 +554,8 @@ class MGEFitter:
             )
 
         print("Proceeding to sectors_photometry with n_sectors =", self.n_sectors)
+        print(f"Public center used by wrapper: (x, y)=({self.xc:.2f}, {self.yc:.2f})")
+        print(f"Center passed to mgefit: xc={mge_xc:.2f}, yc={mge_yc:.2f}")
         return self.sectors_result
 
     def _plot_sectors_overlay(self):
@@ -547,11 +571,6 @@ class MGEFitter:
 
         fig, ax = plt.subplots(figsize=(7, 7))
         ax.imshow(_stretch_for_display(self.img, goodmask=self.goodmask), origin="lower")
-        # try:
-        #     ax.contour((~self.goodmask).astype(float), levels=[0.5], linewidths=0.8,
-        #                alpha=0.8, origin="lower", colors="orange")
-        # except Exception:
-        #     pass
 
         ax.scatter(x_img[idx], y_img[idx], s=1, alpha=0.4, color="orange")
         ax.plot([self.xc], [self.yc], marker="+", markersize=14)
@@ -630,7 +649,8 @@ class MGEFitter:
                 scale=self.pixel_scale,
                 plot=self.plot,
                 quiet=self.quiet,
-                bulge_disk=False, # this worked just fine without bulge_disk = True
+                bulge_disk=self.bulge_disk,
+                negative=self.allow_negative
             )
 
         m, new_figs = _capture_new_figures(_do_fit)
@@ -665,79 +685,354 @@ class MGEFitter:
 
         return self.fit_result
 
+    # def _plot_fit_profiles_and_residuals(self):
+    #     s = self.sectors_result
+    #     m = self.fit_result
+
+    #     r_arc = np.asarray(s.radius) * self.pixel_scale
+    #     y_dat = np.asarray(s.counts)
+    #     y_fit_pts = mge_model_counts_at_polar_points(s.radius, s.angle, m.sol)
+
+    #     rpos = np.asarray(s.radius)
+    #     rpos = rpos[np.isfinite(rpos) & (rpos > 0)]
+    #     rmin = max(np.nanmin(rpos), 0.5) if rpos.size else 0.5
+    #     rmax = np.nanmax(s.radius)
+    #     rgrid = np.geomspace(rmin, rmax, 250)
+    #     rgrid_arc = rgrid * self.pixel_scale
+
+    #     y_major = mge_model_counts_at_polar_points(rgrid, np.zeros_like(rgrid), m.sol)
+    #     y_minor = mge_model_counts_at_polar_points(rgrid, np.full_like(rgrid, 90.0), m.sol)
+    #     y_45 = mge_model_counts_at_polar_points(rgrid, np.full_like(rgrid, 45.0), m.sol)
+
+    #     fig, ax = plt.subplots(figsize=(7.5, 5.5))
+    #     ax.scatter(r_arc, y_dat, s=6, alpha=0.35, label="data (all sectors)")
+    #     ax.plot(rgrid_arc, y_major, linewidth=1.8, label="model (major axis)")
+    #     ax.plot(rgrid_arc, y_minor, linewidth=1.8, label="model (minor axis)")
+    #     ax.plot(rgrid_arc, y_45, linewidth=1.2, label="model (45 deg)")
+    #     ax.set_xlabel("R (arcsec)")
+    #     ax.set_ylabel("counts / pix")
+
+    #     pos = y_dat[np.isfinite(y_dat) & (y_dat > 0)]
+    #     if pos.size > 0 and np.nanmin(pos) > 0:
+    #         ax.set_yscale("log")
+    #         ax.set_xscale("log")
+
+    #     ax.set_title(f"{self.prefix}: radial profile data vs model  (absdev={m.absdev:.4f})")
+    #     ax.legend(fontsize=9)
+    #     fig.tight_layout()
+    #     fig.savefig(os.path.join(self.checkplot_dir, f"{self.prefix}_21_radial_profile_data_vs_model.png"), dpi=self.dpi)
+    #     plt.close(fig)
+
+    #     good = np.isfinite(y_dat) & np.isfinite(y_fit_pts) & (y_dat != 0)
+    #     frac = np.full_like(y_dat, np.nan, dtype=float)
+    #     frac[good] = 1.0 - (y_fit_pts[good] / y_dat[good])
+
+    #     fig, ax = plt.subplots(figsize=(7.5, 4.8))
+    #     ax.scatter(r_arc[good], frac[good], s=6, alpha=0.35)
+    #     ax.axhline(0.0, linewidth=1.0)
+    #     ax.set_xlabel("R (arcsec)")
+    #     ax.set_ylabel(r"$1 - y_{\rm fit}/y$")
+    #     ax.set_title(f"{self.prefix}: fractional residuals")
+    #     fig.tight_layout()
+    #     fig.savefig(os.path.join(self.checkplot_dir, f"{self.prefix}_22_frac_residual_1_minus_yfit_over_y.png"), dpi=self.dpi)
+    #     plt.close(fig)
+
     def _plot_fit_profiles_and_residuals(self):
         s = self.sectors_result
         m = self.fit_result
 
-        r_arc = np.asarray(s.radius) * self.pixel_scale
-        y_dat = np.asarray(s.counts)
-        y_fit_pts = mge_model_counts_at_polar_points(s.radius, s.angle, m.sol)
+        r_pix = np.asarray(s.radius, dtype=float)
+        ang_deg_all = np.asarray(s.angle, dtype=float)
+        y_dat = np.asarray(s.counts, dtype=float)
 
-        rpos = np.asarray(s.radius)
-        rpos = rpos[np.isfinite(rpos) & (rpos > 0)]
-        rmin = max(np.nanmin(rpos), 0.5) if rpos.size else 0.5
-        rmax = np.nanmax(s.radius)
+        # Model evaluated exactly at the sector photometry points
+        y_fit_pts = mge_model_counts_at_polar_points(r_pix, ang_deg_all, m.sol)
+
+        # Build a common radial grid
+        rpos = r_pix[np.isfinite(r_pix) & (r_pix > 0)]
+        if rpos.size == 0:
+            return
+
+        rmin = max(np.nanmin(rpos), 0.5)
+        rmax = np.nanmax(rpos)
         rgrid = np.geomspace(rmin, rmax, 250)
         rgrid_arc = rgrid * self.pixel_scale
+        r_arc = r_pix * self.pixel_scale
 
-        y_major = mge_model_counts_at_polar_points(rgrid, np.zeros_like(rgrid), m.sol)
-        y_minor = mge_model_counts_at_polar_points(rgrid, np.full_like(rgrid, 90.0), m.sol)
-        y_45 = mge_model_counts_at_polar_points(rgrid, np.full_like(rgrid, 45.0), m.sol)
+        # Unique sector angles (rounded a little to avoid float duplication issues)
+        angle_round_decimals = 6
+        ang_key = np.round(ang_deg_all, angle_round_decimals)
+        unique_angles = np.array(sorted(np.unique(ang_key)))
 
-        fig, ax = plt.subplots(figsize=(7.5, 5.5))
-        ax.scatter(r_arc, y_dat, s=6, alpha=0.35, label="data (all sectors)")
-        ax.plot(rgrid_arc, y_major, linewidth=1.8, label="model (major axis)")
-        ax.plot(rgrid_arc, y_minor, linewidth=1.8, label="model (minor axis)")
-        ax.plot(rgrid_arc, y_45, linewidth=1.2, label="model (45 deg)")
-        ax.set_xlabel("R (arcsec)")
-        ax.set_ylabel("counts / pix")
+        # Extract MGE solution arrays
+        sol = np.asarray(m.sol, dtype=float)
+        if sol.ndim != 2 or sol.shape[0] < 3:
+            sol = np.vstack(m.sol)
 
-        pos = y_dat[np.isfinite(y_dat) & (y_dat > 0)]
-        if pos.size > 0 and np.nanmin(pos) > 0:
-            ax.set_yscale("log")
-            ax.set_xscale("log")
+        total_counts = np.asarray(sol[0], dtype=float)
+        sigma_pix = np.asarray(sol[1], dtype=float)
+        q_obs = np.asarray(sol[2], dtype=float)
 
-        ax.set_title(f"{self.prefix}: radial profile data vs model  (absdev={m.absdev:.4f})")
-        ax.legend(fontsize=9)
-        fig.tight_layout()
-        fig.savefig(os.path.join(self.checkplot_dir, f"{self.prefix}_21_radial_profile_data_vs_model.png"), dpi=self.dpi)
+        valid_g = np.isfinite(total_counts) & np.isfinite(sigma_pix) & np.isfinite(q_obs) \
+                & (sigma_pix > 0) & (q_obs > 0) & (total_counts > 0)
+
+        total_counts = total_counts[valid_g]
+        sigma_pix = sigma_pix[valid_g]
+        q_obs = q_obs[valid_g]
+
+        # Sort components by sigma so the family of Gaussians is easier to read
+        order = np.argsort(sigma_pix)
+        total_counts = total_counts[order]
+        sigma_pix = sigma_pix[order]
+        q_obs = q_obs[order]
+
+        def component_profiles_at_angle(rvals_pix, ang_deg):
+            """
+            Return profiles of each Gaussian component at a given polar angle.
+            Output shape = (n_r, n_gauss)
+            Units match mge_model_counts_at_polar_points: counts / pix.
+            """
+            rvals_pix = np.asarray(rvals_pix, dtype=float)[:, None]
+            th = np.deg2rad(float(ang_deg))
+            c2 = np.cos(th) ** 2
+            s2 = np.sin(th) ** 2
+
+            amp = total_counts / (2.0 * np.pi * sigma_pix**2 * q_obs)
+            expo = -0.5 * (rvals_pix**2 / sigma_pix**2) * (c2 + s2 / q_obs**2)
+            return amp[None, :] * np.exp(expo)
+
+        # ---------------------------
+        # 1) Radial profiles by angle
+        # ---------------------------
+        nang = len(unique_angles)
+        ncols = min(3, nang)
+        nrows = int(np.ceil(nang / ncols))
+
+        fig, axes = plt.subplots(
+            nrows, ncols,
+            figsize=(5.2 * ncols, 4.2 * nrows),
+            squeeze=False
+        )
+        axes = axes.ravel()
+
+        for i, ang in enumerate(unique_angles):
+            ax = axes[i]
+            mask = np.isfinite(r_pix) & np.isfinite(y_dat) & np.isclose(ang_key, ang)
+
+            if not np.any(mask):
+                ax.set_visible(False)
+                continue
+
+            r_this_arc = r_arc[mask]
+            y_this = y_dat[mask]
+
+            # Total model for this angle
+            y_model = mge_model_counts_at_polar_points(
+                rgrid, np.full_like(rgrid, ang, dtype=float), m.sol
+            )
+
+            # Individual Gaussian components for this angle
+            y_comp = component_profiles_at_angle(rgrid, ang)  # (nr, ngauss)
+
+            # Plot data
+            ax.scatter(r_this_arc, y_this, s=8, alpha=0.45, label="data")
+
+            # Plot individual Gaussians
+            # Keep all components, but make them subtle
+            for j in range(y_comp.shape[1]):
+                ax.plot(
+                    rgrid_arc, y_comp[:, j],
+                    linewidth=0.6, alpha=0.25
+                )
+
+            # Plot total model
+            ax.plot(rgrid_arc, y_model, linewidth=1.8, label="total model")
+
+            ax.set_title(rf"$\theta = {ang:.1f}^\circ$")
+            ax.set_xlabel("R (arcsec)")
+            ax.set_ylabel("counts / pix")
+
+            good_y = np.concatenate([y_this[np.isfinite(y_this)], y_model[np.isfinite(y_model)]])
+            if good_y.size > 0 and np.nanmin(good_y[good_y > 0]) > 0:
+                ax.set_xscale("log")
+                ax.set_yscale("log")
+                ax.set_ylim(np.nanmin(y_model[y_model > 0]) / 5, np.nanmax(y_this)*1.3)
+            ax.grid(alpha=0.2)
+            if i == 0:
+                ax.legend(fontsize=9)
+
+        for j in range(nang, len(axes)):
+            axes[j].set_visible(False)
+
+        fig.suptitle(f"{self.prefix}: radial profile by sector angle  (absdev={m.absdev:.4f})", y=0.995)
+        fig.tight_layout(rect=[0, 0, 1, 0.98])
+        fig.savefig(
+            os.path.join(self.checkplot_dir, f"{self.prefix}_21_radial_profiles_by_angle.pdf"),
+            dpi=self.dpi
+        )
         plt.close(fig)
 
+        # ---------------------------
+        # 2) Fractional residuals by angle
+        # ---------------------------
         good = np.isfinite(y_dat) & np.isfinite(y_fit_pts) & (y_dat != 0)
         frac = np.full_like(y_dat, np.nan, dtype=float)
         frac[good] = 1.0 - (y_fit_pts[good] / y_dat[good])
 
-        fig, ax = plt.subplots(figsize=(7.5, 4.8))
-        ax.scatter(r_arc[good], frac[good], s=6, alpha=0.35)
-        ax.axhline(0.0, linewidth=1.0)
-        ax.set_xlabel("R (arcsec)")
-        ax.set_ylabel(r"$1 - y_{\rm fit}/y$")
-        ax.set_title(f"{self.prefix}: fractional residuals")
-        fig.tight_layout()
-        fig.savefig(os.path.join(self.checkplot_dir, f"{self.prefix}_22_frac_residual_1_minus_yfit_over_y.png"), dpi=self.dpi)
+        fig, axes = plt.subplots(
+            nrows, ncols,
+            figsize=(5.2 * ncols, 3.8 * nrows),
+            squeeze=False,
+            sharex=False,
+            sharey=True
+        )
+        axes = axes.ravel()
+
+        for i, ang in enumerate(unique_angles):
+            ax = axes[i]
+            mask = good & np.isclose(ang_key, ang)
+
+            if not np.any(mask):
+                ax.set_visible(False)
+                continue
+
+            ax.scatter(r_arc[mask], frac[mask], s=8, alpha=0.5)
+            ax.axhline(0.0, linewidth=1.0)
+            ax.set_title(rf"$\theta = {ang:.1f}^\circ$")
+            ax.set_xlabel("R (arcsec)")
+            ax.set_ylabel(r"$1 - y_{\rm fit}/y$")
+
+            xpos = r_arc[mask]
+            xpos = xpos[np.isfinite(xpos) & (xpos > 0)]
+            if xpos.size > 0:
+                ax.set_xscale("log")
+
+            ax.grid(alpha=0.2)
+
+        for j in range(nang, len(axes)):
+            axes[j].set_visible(False)
+
+        fig.suptitle(f"{self.prefix}: fractional residuals by sector angle", y=0.995)
+        fig.tight_layout(rect=[0, 0, 1, 0.98])
+        fig.savefig(
+            os.path.join(self.checkplot_dir, f"{self.prefix}_22_frac_residuals_by_angle.pdf"),
+            dpi=self.dpi
+        )
         plt.close(fig)
 
+    # def _plot_fit_contours_and_ratio(self):
+    #     m = self.fit_result
+
+    #     half_size_pix = int(max(10, self.contour_half_size_arcsec / self.pixel_scale))
+    #     bounds, model_cut = build_mge_model_image_cutout(
+    #         self.img.shape, m.sol, self.pa, (self.xc, self.yc),
+    #         half_size_pix=half_size_pix,
+    #         oversample=self.contour_oversample,
+    #     )
+    #     x1, x2, y1, y2 = bounds
+    #     data_cut = self.img[y1:y2, x1:x2]
+    #     good_cut = self.goodmask[y1:y2, x1:x2]
+
+    #     v = data_cut[good_cut]
+    #     v = v[np.isfinite(v)]
+
+    #     if v.size > 0:
+    #         levels = np.percentile(v, [70, 80, 90, 95, 97, 99])
+    #         levels = np.unique(levels[np.isfinite(levels)])
+
+    #         if levels.size >= 3:
+    #             fig, ax = plt.subplots(figsize=(7, 7))
+    #             ax.imshow(
+    #                 _stretch_for_display(data_cut, goodmask=good_cut),
+    #                 origin="lower",
+    #                 extent=[x1, x2, y1, y2]
+    #             )
+    #             ax.contour(
+    #                 model_cut,
+    #                 levels=levels,
+    #                 linewidths=1.0,
+    #                 origin="lower",
+    #                 extent=[x1, x2, y1, y2]
+    #             )
+    #             ax.plot([self.xc], [self.yc], marker="+", markersize=14)
+    #             ax.set_title(f"{self.prefix}: model contours over data (cutout)")
+    #             ax.set_xlabel("x (pix)")
+    #             ax.set_ylabel("y (pix)")
+    #             fig.tight_layout()
+    #             fig.savefig(os.path.join(self.checkplot_dir, f"{self.prefix}_23_model_contours_over_data.png"), dpi=self.dpi)
+    #             plt.close(fig)
+
+    #             fig, ax = plt.subplots(figsize=(7, 7))
+    #             with np.errstate(divide="ignore", invalid="ignore"):
+    #                 ratio = data_cut / model_cut
+    #             ax.imshow(
+    #                 _stretch_for_display(ratio, goodmask=good_cut),
+    #                 origin="lower",
+    #                 extent=[x1, x2, y1, y2]
+    #             )
+    #             ax.plot([self.xc], [self.yc], marker="+", markersize=14)
+    #             ax.set_title(f"{self.prefix}: data/model ratio (cutout)")
+    #             ax.set_xlabel("x (pix)")
+    #             ax.set_ylabel("y (pix)")
+    #             fig.tight_layout()
+    #             fig.savefig(os.path.join(self.checkplot_dir, f"{self.prefix}_24_data_over_model_ratio.png"), dpi=self.dpi)
+    #             plt.close(fig)
     def _plot_fit_contours_and_ratio(self):
         m = self.fit_result
 
-        # mge.print_contours(
-        #     self.img, self.theta, self.xc, self.yc, m.sol,
-        #     scale=self.pixel_scale,
-        #     sigmapsf=self.sigmapsf,
-        #     normpsf=self.normpsf,
-        #     binning=9,
-        #     minlevel=self.minlevel
-        # )
-
         half_size_pix = int(max(10, self.contour_half_size_arcsec / self.pixel_scale))
+
+        # IMPORTANT:
+        # Use the image-plane angle used by the sector extraction / fit, not the sky PA.
+        # In many pipelines self.pa is an astronomical PA, while the model-image builder
+        # wants the image-frame theta.
+        theta = getattr(self, "theta", None)
+        if theta is None:
+            theta = getattr(self, "theta_deg", None)
+        if theta is None:
+            theta = self.pa  # fallback only if no theta attribute exists
+
         bounds, model_cut = build_mge_model_image_cutout(
-            self.img.shape, m.sol, self.pa, (self.xc, self.yc),
+            self.img.shape,
+            m.sol,
+            theta,
+            (self.xc, self.yc),
             half_size_pix=half_size_pix,
             oversample=self.contour_oversample,
         )
+
         x1, x2, y1, y2 = bounds
         data_cut = self.img[y1:y2, x1:x2]
         good_cut = self.goodmask[y1:y2, x1:x2]
+
+        # Make sure model_cut has the same axis ordering as data_cut: [y, x]
+        if model_cut.shape != data_cut.shape:
+            if model_cut.T.shape == data_cut.shape:
+                model_cut = model_cut.T
+            else:
+                raise ValueError(
+                    f"model_cut shape {model_cut.shape} does not match "
+                    f"data_cut shape {data_cut.shape}"
+                )
+        else:
+            # If the cutout is square, shape alone cannot tell whether x/y are swapped.
+            # Compare both orientations and keep the one that matches the data better.
+            if model_cut.shape[0] == model_cut.shape[1]:
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    valid0 = good_cut & np.isfinite(data_cut) & np.isfinite(model_cut) & (data_cut > 0) & (model_cut > 0)
+                    validT = good_cut & np.isfinite(data_cut) & np.isfinite(model_cut.T) & (data_cut > 0) & (model_cut.T > 0)
+
+                    score0 = np.inf
+                    scoreT = np.inf
+
+                    if np.count_nonzero(valid0) > 20:
+                        score0 = np.nanmedian(np.abs(np.log(data_cut[valid0] / model_cut[valid0])))
+
+                    if np.count_nonzero(validT) > 20:
+                        scoreT = np.nanmedian(np.abs(np.log(data_cut[validT] / model_cut.T[validT])))
+
+                if scoreT < score0:
+                    model_cut = model_cut.T
 
         v = data_cut[good_cut]
         v = v[np.isfinite(v)]
@@ -751,7 +1046,8 @@ class MGEFitter:
                 ax.imshow(
                     _stretch_for_display(data_cut, goodmask=good_cut),
                     origin="lower",
-                    extent=[x1, x2, y1, y2]
+                    extent=[x1, x2, y1, y2],
+                    #cmap='Grays'
                 )
                 ax.contour(
                     model_cut,
@@ -765,7 +1061,10 @@ class MGEFitter:
                 ax.set_xlabel("x (pix)")
                 ax.set_ylabel("y (pix)")
                 fig.tight_layout()
-                fig.savefig(os.path.join(self.checkplot_dir, f"{self.prefix}_23_model_contours_over_data.png"), dpi=self.dpi)
+                fig.savefig(
+                    os.path.join(self.checkplot_dir, f"{self.prefix}_23_model_contours_over_data.png"),
+                    dpi=self.dpi
+                )
                 plt.close(fig)
 
                 fig, ax = plt.subplots(figsize=(7, 7))
@@ -776,17 +1075,18 @@ class MGEFitter:
                     origin="lower",
                     extent=[x1, x2, y1, y2]
                 )
-                ax.plot([self.xc], [self.yc], marker="+", markersize=14)
-                ax.set_title(f"{self.prefix}: data/model ratio (cutout)")
+                #ax.plot([self.xc], [self.yc], marker="+", markersize=14)
+                ax.set_title(f"{self.prefix}: residual (cutout)")
                 ax.set_xlabel("x (pix)")
                 ax.set_ylabel("y (pix)")
                 fig.tight_layout()
-                fig.savefig(os.path.join(self.checkplot_dir, f"{self.prefix}_24_data_over_model_ratio.png"), dpi=self.dpi)
+                fig.savefig(
+                    os.path.join(self.checkplot_dir, f"{self.prefix}_24_data_over_model_ratio.png"),
+                    dpi=self.dpi
+                )
                 plt.close(fig)
 
-    # -------------------------
-    # high-level helpers
-    # -------------------------
+    # runners 
     def run_all(self, force_find=False, force_sectors=False, force_fit=False, save=True, load=True):
         if self.has_manual_geometry():
             self.run_sectors(force=force_sectors, save=save, load=load)
@@ -807,7 +1107,7 @@ class MGEFitter:
         table = np.vstack([surf, sigma_pix, sigma_arcsec, q_obs, total_counts]).T
 
         return {
-            "center_pix": (self.xc, self.yc),   # (x, y)
+            "center_pix": (self.xc, self.yc),   # public convention: (x, y)
             "pa_deg": self.pa,
             "eps": self.eps,
             "theta_deg": self.theta,

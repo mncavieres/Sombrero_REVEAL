@@ -55,7 +55,7 @@ if __name__ == "__main__":
     prefix="sombrero_f200",
     contour_half_size_arcsec=80,
     contour_oversample=1,
-    n_sectors=24,
+    n_sectors=60,
     #center=(7537.219884279368, 7332.548985227105),   # (x, y)
     #pa_deg=87.2,
     #eps=0.35,
