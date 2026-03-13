@@ -97,6 +97,14 @@ if __name__ == "__main__":
     runner.run_sectors()  # this will use the new geometry and overwrite any previous sectors
     runner.run_fit() # 
 
+    out = runner.plot_deprojected_density_map(
+    inc_deg=87.2,
+    distance_mpc=9.55,   # https://simbad.cds.unistra.fr/simbad/sim-ref?bibcode=2025ApJ...978...77B
+    ml=1.0,
+    half_size_arcsec=40.0,
+    npix=600,
+    mass_density=False,  # True if you want rho_* after applying M/L
+)
     # res = runner.run_all(
     #     force_sectors=True,
     #     force_fit=True,

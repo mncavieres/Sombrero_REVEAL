@@ -1133,3 +1133,150 @@ class MGEFitter:
             pickle.dump(self.results_dict(), f)
 
         return filename
+    
+    def plot_deprojected_density_map(
+        self,
+        inc_deg,
+        distance_mpc=None,
+        ml=1.0,
+        half_size_arcsec=30.0,
+        npix=400,
+        save=True,
+        mass_density=False,
+        ):
+        """
+        Plot the deprojected axisymmetric MGE density on a meridional (R,z) plane.
+
+        Parameters
+        ----------
+        inc_deg : float
+            Inclination in degrees. 90 = edge-on.
+        distance_mpc : float or None
+            Distance in Mpc. If given, axes are in pc and density is per pc^3.
+            If None, axes stay in pixels and density is in arbitrary/pixel^3 units.
+        ml : float
+            Mass-to-light ratio. Only applied if mass_density=True.
+        half_size_arcsec : float
+            Half-size of plotted box in arcsec (or converted to pixels if distance_mpc is None).
+        npix : int
+            Number of pixels per axis in the output density map.
+        save : bool
+            Save the figure to checkplot_dir.
+        mass_density : bool
+            If True, multiply luminosity density by ml.
+        """
+        import os
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        if self.fit_result is None:
+            raise RuntimeError("No fit_result found.")
+
+        # MGE solution from mge_fit_sectors: total_counts, sigma_pix, q_obs
+        total_counts, sigma_pix, qobs = self.fit_result.sol
+        total_counts = np.asarray(total_counts, dtype=float)
+        sigma_pix = np.asarray(sigma_pix, dtype=float)
+        qobs = np.asarray(qobs, dtype=float)
+
+        inc = np.deg2rad(inc_deg)
+        sini = np.sin(inc)
+        cosi = np.cos(inc)
+
+        if np.isclose(sini, 0.0):
+            raise ValueError("inc_deg must be > 0 for axisymmetric deprojection.")
+
+        # Oblate axisymmetric intrinsic flattening:
+        # qintr^2 = (qobs^2 - cos(i)^2) / sin(i)^2
+        qintr2 = (qobs**2 - cosi**2) / (sini**2)
+
+        if np.any(qintr2 <= 0):
+            qmin = np.min(qobs)
+            inc_min = np.degrees(np.arccos(np.clip(qmin, -1.0, 1.0)))
+            raise ValueError(
+                f"Chosen inclination {inc_deg:.2f} deg is too low for this MGE. "
+                f"Need roughly inc_deg >= {inc_min:.2f} deg."
+            )
+
+        qintr = np.sqrt(qintr2)
+
+        # Convert sigma to the working length unit
+        sigma_arcsec = sigma_pix * self.pixel_scale
+
+        if distance_mpc is None:
+            # Work in pixels
+            sigma = sigma_pix
+            half_size = half_size_arcsec / self.pixel_scale
+            xlab = "R (mirrored) [pix]"
+            ylab = "z [pix]"
+            unit_label = "arb / pix^3"
+        else:
+            # Convert arcsec -> pc
+            pc_per_arcsec = distance_mpc * 1.0e6 / 206265.0
+            sigma = sigma_arcsec * pc_per_arcsec
+            half_size = half_size_arcsec * pc_per_arcsec
+            xlab = "R (mirrored) [pc]"
+            ylab = "z [pc]"
+            unit_label = "L / pc^3"
+
+        # Peak projected surface brightness for each Gaussian
+        # surf = total_counts / (2*pi*qobs*sigma^2)
+        surf = total_counts / (2.0 * np.pi * qobs * sigma**2)
+
+        # Intrinsic central density for each Gaussian
+        dens0 = surf * qobs / (qintr * sigma * np.sqrt(2.0 * np.pi))
+
+        if mass_density:
+            dens0 = ml * dens0
+            unit_label = unit_label.replace("L", "M")
+
+        # Build meridional grid. Mirror R for display symmetry.
+        x = np.linspace(-half_size, half_size, npix)
+        z = np.linspace(-half_size, half_size, npix)
+        xx, zz = np.meshgrid(x, z)
+        RR = np.abs(xx)
+
+        rho = np.zeros_like(RR)
+
+        # Sum intrinsic 3D Gaussians:
+        # rho_k(R,z) = dens0_k * exp[-(R^2 + z^2/q_k^2)/(2 sigma_k^2)]
+        for d0, s, q in zip(dens0, sigma, qintr):
+            rho += d0 * np.exp(-0.5 * (RR**2 + (zz**2) / (q**2)) / s**2)
+
+        # Plot log density
+        rho_plot = np.full_like(rho, np.nan, dtype=float)
+        good = np.isfinite(rho) & (rho > 0)
+        rho_plot[good] = np.log10(rho[good])
+
+        fig, ax = plt.subplots(figsize=(7, 6))
+        im = ax.imshow(
+            rho_plot,
+            origin="lower",
+            extent=[x.min(), x.max(), z.min(), z.max()],
+            aspect="equal",
+        )
+        cbar = fig.colorbar(im, ax=ax)
+        cbar.set_label(f"log10 density [{unit_label}]")
+
+        ax.set_xlabel(xlab)
+        ax.set_ylabel(ylab)
+        ax.set_title(f"{self.prefix}: deprojected axisymmetric density (i={inc_deg:.1f} deg)")
+
+        fig.tight_layout()
+
+        if save:
+            out = os.path.join(
+                self.checkplot_dir,
+                f"{self.prefix}_25_deprojected_density_i{inc_deg:.1f}.png"
+            )
+            fig.savefig(out, dpi=self.dpi)
+
+        plt.close(fig)
+
+        return {
+            "x": x,
+            "z": z,
+            "rho": rho,
+            "qintr": qintr,
+            "dens0": dens0,
+            "sigma": sigma,
+        }
