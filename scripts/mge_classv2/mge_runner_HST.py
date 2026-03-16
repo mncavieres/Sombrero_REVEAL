@@ -107,7 +107,8 @@ if __name__ == "__main__":
 
     # # remember to set things to force=True if you want to re-run steps that have already been cached
     #runner.run_find(force=True)  # this will use the new geometry and overwrite any previous sectors
-    runner.run_sectors(force=True)  # this will use the new geometry and overwrite any previous sectors
-    runner.run_fit(force=True) # 
+    runner.run_sectors()  # this will use the new geometry and overwrite any previous sectors
+    runner.run_fit() # 
 
-
+    # save the mge parameters to a text file
+    

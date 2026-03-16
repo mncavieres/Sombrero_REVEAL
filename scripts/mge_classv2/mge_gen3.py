@@ -7,6 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import mgefit as mge
+from matplotlib.lines import Line2D
+from scipy.ndimage import gaussian_filter
+
 
 
 ARCSEC_TO_RAD = np.deg2rad(1.0 / 3600.0)
@@ -51,6 +54,57 @@ def _stretch_for_display(img, goodmask=None):
     z = np.arcsinh((z - lo) / (hi - lo + 1e-30))
     return z
 
+def _native_like_mge_levels(image, goodmask, magstep=0.5, minlevel=None, nlevels=None):
+    """
+    Build contour levels similar in spirit to mge_print_contours:
+    logarithmic spacing in intensity, corresponding to equal steps in magnitudes.
+
+    Parameters
+    ----------
+    image : 2D array
+    goodmask : 2D bool array
+    magstep : float
+        Step in magnitudes between contours.
+    minlevel : float or None
+        Absolute minimum intensity level to include.
+    nlevels : int or None
+        Optional maximum number of contour levels.
+    """
+    valid = goodmask & np.isfinite(image) & (image > 0)
+    v = image[valid]
+    if v.size == 0:
+        return None
+
+    peak = np.nanmax(v)
+    if not np.isfinite(peak) or peak <= 0:
+        return None
+
+    if minlevel is None:
+        # sensible fallback: stop before the noisy floor
+        minlevel = np.nanpercentile(v, 70)
+
+    if (not np.isfinite(minlevel)) or (minlevel <= 0) or (minlevel >= peak):
+        minlevel = np.nanpercentile(v, 70)
+
+    # number of equal-mag contours from peak down to minlevel
+    max_decades = np.log10(peak / minlevel)
+    max_mag = max_decades / 0.4
+    n = int(np.floor(max_mag / magstep)) + 1
+    n = max(n, 3)
+
+    if nlevels is not None:
+        n = min(n, int(nlevels))
+
+    k = np.arange(n)
+    levels = peak * 10.0**(-0.4 * magstep * k)
+
+    levels = levels[(levels >= minlevel) & np.isfinite(levels)]
+    levels = np.unique(np.sort(levels))
+
+    if levels.size < 3:
+        return None
+
+    return levels
 
 def mge_model_counts_at_polar_points(radius_pix, angle_deg, sol):
     """
@@ -654,9 +708,7 @@ class MGEFitter:
         if center is not None or pa_deg is not None or eps is not None or theta_deg is not None:
             self.set_manual_geometry(center=center, pa_deg=pa_deg, eps=eps, theta_deg=theta_deg)
 
-    # -------------------------
-    # conversion helpers
-    # -------------------------
+    # helpers for geometry conventions because mge is a nightmare
     @staticmethod
     def _find_result_to_public_xy(find_result):
         """
@@ -675,9 +727,7 @@ class MGEFitter:
         mge_yc = float(x_public)   # second index / column
         return mge_xc, mge_yc
 
-    # -------------------------
-    # manual geometry
-    # -------------------------
+    # set manual geometry, much better than the mgefind galaxy shit
     def set_manual_geometry(self, *, center=None, pa_deg=None, eps=None, theta_deg=None):
         if center is not None:
             if len(center) != 2:
@@ -776,9 +826,7 @@ class MGEFitter:
             return None
         return float(self.find_result.theta)
 
-    # -------------------------
-    # deprojection helpers
-    # -------------------------
+    # deprojection helpers for the future
     def set_deprojection(self, inclination_deg, distance=None, sb_unit=None):
         """
         Store the axisymmetric deprojection configuration.
@@ -1122,9 +1170,7 @@ class MGEFitter:
         fig.savefig(os.path.join(self.checkplot_dir, f"{self.prefix}_01_geometry_overlay.png"), dpi=self.dpi)
         plt.close(fig)
 
-    # -------------------------
-    # stage 2: sectors_photometry
-    # -------------------------
+
     def run_sectors(self, force=False, save=True, load=True, ensure_find=True):
         if ensure_find and (not self.geometry_is_available()):
             self.run_find(force=False, save=save, load=load)
@@ -1616,6 +1662,303 @@ class MGEFitter:
                     dpi=self.dpi
                 )
                 plt.close(fig)
+    
+
+    # def _plot_fit_contours(self, show=False, smoothing=None):
+    #     """
+    #     Plot data isophotes and MGE model contours.
+
+    #     Parameters
+    #     ----------
+    #     show : bool
+    #         If True, display the figure.
+    #     smoothing : float or None
+    #         Gaussian sigma in pixels applied only to the data contours.
+    #         If None or <= 0, no smoothing is applied.
+    #     """
+    #     m = self.fit_result
+
+    #     half_size_pix = int(max(10, self.contour_half_size_arcsec / self.pixel_scale))
+
+    #     # Use the same image-plane angle used by the sector extraction / fit
+    #     theta = getattr(self, "theta", None)
+    #     if theta is None:
+    #         theta = getattr(self, "theta_deg", None)
+    #     if theta is None:
+    #         theta = self.pa
+
+    #     bounds, model_cut = build_mge_model_image_cutout(
+    #         self.img.shape,
+    #         m.sol,
+    #         theta,
+    #         (self.xc, self.yc),
+    #         half_size_pix=half_size_pix,
+    #         oversample=self.contour_oversample,
+    #     )
+
+    #     x1, x2, y1, y2 = bounds
+    #     data_cut = self.img[y1:y2, x1:x2]
+    #     good_cut = self.goodmask[y1:y2, x1:x2]
+
+    #     # Make sure model_cut has same axis ordering as data_cut
+    #     if model_cut.shape != data_cut.shape:
+    #         if model_cut.T.shape == data_cut.shape:
+    #             model_cut = model_cut.T
+    #         else:
+    #             raise ValueError(
+    #                 f"model_cut shape {model_cut.shape} does not match "
+    #                 f"data_cut shape {data_cut.shape}"
+    #             )
+    #     else:
+    #         # If square, compare both orientations and keep the one that matches best
+    #         if model_cut.shape[0] == model_cut.shape[1]:
+    #             with np.errstate(divide="ignore", invalid="ignore"):
+    #                 valid0 = (
+    #                     good_cut
+    #                     & np.isfinite(data_cut)
+    #                     & np.isfinite(model_cut)
+    #                     & (data_cut > 0)
+    #                     & (model_cut > 0)
+    #                 )
+    #                 validT = (
+    #                     good_cut
+    #                     & np.isfinite(data_cut)
+    #                     & np.isfinite(model_cut.T)
+    #                     & (data_cut > 0)
+    #                     & (model_cut.T > 0)
+    #                 )
+
+    #                 score0 = np.inf
+    #                 scoreT = np.inf
+
+    #                 if np.count_nonzero(valid0) > 20:
+    #                     score0 = np.nanmedian(
+    #                         np.abs(np.log(data_cut[valid0] / model_cut[valid0]))
+    #                     )
+
+    #                 if np.count_nonzero(validT) > 20:
+    #                     scoreT = np.nanmedian(
+    #                         np.abs(np.log(data_cut[validT] / model_cut.T[validT]))
+    #                     )
+
+    #             if scoreT < score0:
+    #                 model_cut = model_cut.T
+
+    #     # ------------------------------------------------------------------
+    #     # Mask-aware smoothing of the data only
+    #     # ------------------------------------------------------------------
+    #     data_for_contours = np.array(data_cut, dtype=float, copy=True)
+
+    #     if smoothing is not None and smoothing > 0:
+    #         valid = good_cut & np.isfinite(data_cut)
+
+    #         weights = valid.astype(float)
+    #         values = np.where(valid, data_cut, 0.0)
+
+    #         smooth_num = gaussian_filter(values * weights, sigma=smoothing, mode="nearest")
+    #         smooth_den = gaussian_filter(weights, sigma=smoothing, mode="nearest")
+
+    #         with np.errstate(invalid="ignore", divide="ignore"):
+    #             data_for_contours = smooth_num / smooth_den
+
+    #         data_for_contours[smooth_den <= 1e-6] = np.nan
+    #         data_for_contours[~good_cut] = np.nan
+
+    #     # Valid positive data values for defining contour levels
+    #     valid_data = good_cut & np.isfinite(data_for_contours) & (data_for_contours > 0)
+    #     v = data_for_contours[valid_data]
+
+    #     if v.size == 0:
+    #         return
+
+    #     # Use logarithmically spaced levels
+    #     lo = np.nanpercentile(v, 70)
+    #     hi = np.nanpercentile(v, 99.7)
+
+    #     if not np.isfinite(lo) or not np.isfinite(hi):
+    #         return
+
+    #     if hi > lo and lo > 0:
+    #         levels = np.geomspace(lo, hi, 8)
+    #     else:
+    #         levels = np.percentile(v, [70, 80, 90, 95, 97, 99])
+
+    #     levels = np.unique(levels[np.isfinite(levels)])
+    #     if levels.size < 3:
+    #         return
+
+    #     extent = [x1, x2, y1, y2]
+
+    #     fig, ax = plt.subplots(figsize=(7, 7))
+
+    #     # Smoothed data isophotes
+    #     ax.contour(
+    #         data_for_contours,
+    #         levels=levels,
+    #         colors="cyan",
+    #         linewidths=0.6,
+    #         origin="lower",
+    #         extent=extent,
+    #         alpha=0.9,
+    #     )
+
+    #     # MGE model contours at the same levels
+    #     ax.contour(
+    #         model_cut,
+    #         levels=levels,
+    #         colors="red",
+    #         linewidths=1.0,
+    #         linestyles="--",
+    #         origin="lower",
+    #         extent=extent,
+    #     )
+
+    #     ax.plot([self.xc], [self.yc], marker="+", markersize=14, color="yellow", mew=1.5)
+
+    #     legend_handles = [
+    #         Line2D([0], [0], color="cyan", lw=1.5, label="Data isophotes"),
+    #         Line2D([0], [0], color="red", lw=1.5, ls="--", label="MGE model contours"),
+    #         Line2D([0], [0], color="yellow", marker="+", lw=0, markersize=10, label="Center"),
+    #     ]
+    #     ax.legend(handles=legend_handles, loc="upper right", frameon=True)
+
+    #     title = f"{self.prefix}: data isophotes + MGE model contours"
+    #     if smoothing is not None and smoothing > 0:
+    #         title += f" (Gaussian σ={smoothing:.2f} pix)"
+    #     ax.set_title(title)
+
+    #     ax.set_xlabel("x (pix)")
+    #     ax.set_ylabel("y (pix)")
+    #     fig.tight_layout()
+    #     fig.savefig(
+    #         os.path.join(
+    #             self.checkplot_dir,
+    #             f"{self.prefix}_23_data_isophotes_and_model_contours.png",
+    #         ),
+    #         dpi=self.dpi,
+    #     )
+    #     if show:
+    #         plt.show()
+    #     plt.close(fig)
+    def _plot_fit_contours(
+        self,
+        show=False,
+        smoothing=0.0,
+        magstep=0.5,
+        minlevel=None,
+        nlevels=None,
+    ):
+        m = self.fit_result
+
+        half_size_pix = int(max(10, self.contour_half_size_arcsec / self.pixel_scale))
+
+        theta = getattr(self, "theta", None)
+        if theta is None:
+            theta = getattr(self, "theta_deg", None)
+        if theta is None:
+            theta = self.pa
+
+        bounds, model_cut = build_mge_model_image_cutout(
+            self.img.shape,
+            m.sol,
+            theta,
+            (self.xc, self.yc),
+            half_size_pix=half_size_pix,
+            oversample=self.contour_oversample,
+        )
+
+        x1, x2, y1, y2 = bounds
+        data_cut = self.img[y1:y2, x1:x2]
+        good_cut = self.goodmask[y1:y2, x1:x2]
+
+        if model_cut.shape != data_cut.shape:
+            if model_cut.T.shape == data_cut.shape:
+                model_cut = model_cut.T
+            else:
+                raise ValueError(
+                    f"model_cut shape {model_cut.shape} does not match "
+                    f"data_cut shape {data_cut.shape}"
+                )
+
+        # very mild optional smoothing, just to suppress pixel noise
+        data_for_contours = np.array(data_cut, dtype=float, copy=True)
+        if smoothing is not None and smoothing > 0:
+            valid = good_cut & np.isfinite(data_cut)
+            weights = valid.astype(float)
+            values = np.where(valid, data_cut, 0.0)
+
+            num = gaussian_filter(values * weights, sigma=smoothing, mode="nearest")
+            den = gaussian_filter(weights, sigma=smoothing, mode="nearest")
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                data_for_contours = num / den
+
+            data_for_contours[den <= 1e-8] = np.nan
+            data_for_contours[~good_cut] = np.nan
+
+        levels = _native_like_mge_levels(
+            data_for_contours,
+            good_cut,
+            magstep=magstep,
+            minlevel=minlevel,
+            nlevels=nlevels,
+        )
+        if levels is None:
+            return
+
+        extent = [x1, x2, y1, y2]
+
+        fig, ax = plt.subplots(figsize=(7, 7))
+
+        ax.contour(
+            data_for_contours,
+            levels=levels,
+            colors="k",
+            linewidths=0.6,
+            origin="lower",
+            extent=extent,
+        )
+
+        ax.contour(
+            model_cut,
+            levels=levels,
+            colors="r",
+            linewidths=1.0,
+            linestyles="--",
+            origin="lower",
+            extent=extent,
+        )
+
+        ax.plot([self.xc], [self.yc], marker="+", markersize=14, color="gold", mew=1.5)
+
+        legend_handles = [
+            Line2D([0], [0], color="k", lw=1.2, label="Data isophotes"),
+            Line2D([0], [0], color="r", lw=1.2, ls="--", label="MGE model contours"),
+            Line2D([0], [0], color="gold", marker="+", lw=0, markersize=10, label="Center"),
+        ]
+        ax.legend(handles=legend_handles, loc="upper right", frameon=True)
+
+        ax.set_title(
+            f"{self.prefix}: contours (magstep={magstep}"
+            + (f", smooth={smoothing:.2f}px" if smoothing and smoothing > 0 else "")
+            + ")"
+        )
+        ax.set_xlabel("x (pix)")
+        ax.set_ylabel("y (pix)")
+
+        fig.tight_layout()
+        fig.savefig(
+            os.path.join(
+                self.checkplot_dir,
+                f"{self.prefix}_23_data_isophotes_and_model_contours.png",
+            ),
+            dpi=self.dpi,
+        )
+
+        if show:
+            plt.show()
+        plt.close(fig)
+
 
     # runners
     def run_all(self, force_find=False, force_sectors=False, force_fit=False, save=True, load=True):

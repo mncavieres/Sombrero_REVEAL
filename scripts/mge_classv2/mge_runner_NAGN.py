@@ -42,7 +42,7 @@ def brightest_pixel_near(img, x0, y0, halfsize=50, goodmask=None):
 if __name__ == "__main__":
 
     img_f200 = fits.open(
-        '/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/IFU/photometry/f200w_ifu_coadd_masked.fits'
+        '/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/IFU/photometry/f200w_ifu_coadd_NOAGN_aligned.fits'
     )[0].data
 
     dust_mask = fits.open(
@@ -54,8 +54,9 @@ if __name__ == "__main__":
         print(f"Found {np.sum(nan_mask)} NaN pixels in the image. Replacing with 0 and adding to dust mask.")
         img_f200[nan_mask] = 0.0
         dust_mask = dust_mask | nan_mask
+        
 
-    checkplot_dir = "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/mge_test_nosky_0deg_pa_positive_gauss"
+    checkplot_dir = "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/mge_NAGN_0deg_pa_positive_gauss"
     _ensure_dir(checkplot_dir)
 
     runner = MGEFitter(
@@ -69,7 +70,7 @@ if __name__ == "__main__":
         checkplot_dir=checkplot_dir,
         cache_dir=checkplot_dir,
         prefix="sombrero_f200",
-        contour_half_size_arcsec=200,
+        contour_half_size_arcsec=20,
         contour_oversample=1,
         n_sectors=19,
         allow_negative=False,
@@ -94,9 +95,9 @@ if __name__ == "__main__":
     print(f"Stored manual center in runner: (x, y) = ({runner.xc:.2f}, {runner.yc:.2f})")
 
     # remember to set things to force=True if you want to re-run steps that have already been cached
-    #runner.run_sectors()  # this will use the new geometry and overwrite any previous sectors
-    #runner.run_fit() # 
-    runner.run_fit(force=True) # this will use the new geometry and overwrite any previous fit
+    runner.run_sectors()  # this will use the new geometry and overwrite any previous sectors
+    runner.run_fit() # 
+    runner.run_fit() # this will use the new geometry and overwrite any previous fit
 
     # runner.set_deprojection(
     #     inclination_deg=86.12, # inclination in degrees (0 = face-on, 90 = edge-on)
