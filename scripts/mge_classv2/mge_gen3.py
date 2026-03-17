@@ -1959,6 +1959,105 @@ class MGEFitter:
             plt.show()
         plt.close(fig)
 
+    def compute_total_flux(
+        self,
+        ml=None,
+        sb_unit=u.MJy / u.sr,
+        flux_unit=u.MJy,
+        flux_to_lum=None,
+        return_components=False,
+    ):
+        """
+        Analytically integrate the fitted projected MGE over the full plane.
+
+        Parameters
+        ----------
+        ml : `astropy.units.Quantity`, optional
+            Mass-to-light ratio, with units convertible to `u.Msun/u.Lsun`.
+            If provided, the method returns a mass instead of a flux.
+
+        sb_unit : `astropy.units.Unit` or Quantity unit, optional
+            Surface-brightness unit of the image used for the MGE fit.
+            For your JWST case the default is `u.MJy/u.sr`.
+
+        flux_unit : `astropy.units.Unit`, optional
+            Output integrated flux unit. Default: `u.MJy`.
+
+        flux_to_lum : `astropy.units.Quantity`, optional
+            Conversion factor from integrated flux to luminosity, e.g.
+            something with units `u.Lsun/u.MJy`.
+
+            This is required if `ml` is passed and your fit is in flux units
+            such as MJy/sr. An `M/L` in `Msun/Lsun` cannot be applied directly
+            to a flux unless you first convert that flux to luminosity.
+
+        return_components : bool, optional
+            If True, also return the per-Gaussian contributions.
+
+        Returns
+        -------
+        total_flux : `astropy.units.Quantity`
+            Total integrated flux of the MGE if `ml is None`.
+
+        total_mass : `astropy.units.Quantity`
+            Total mass if `ml` is provided.
+
+        Notes
+        -----
+        In `mgefit`, `self.fit_result.sol[0]` is already the analytically
+        integrated normalization (`Total_Counts`) of each Gaussian.
+
+        If the fit image is in surface-brightness units (e.g. MJy/sr), then
+        the total integrated flux is:
+
+            total_flux = sum(Total_Counts_j) * pixel_area
+
+        where `pixel_area` is the solid angle of one pixel.
+        """
+        if getattr(self, "fit_result", None) is None or getattr(self.fit_result, "sol", None) is None:
+            raise RuntimeError("run_fit() must be executed before compute_total_flux().")
+
+        sol = np.asarray(self.fit_result.sol, dtype=float)
+        if sol.ndim != 2 or sol.shape[0] < 1:
+            raise ValueError("self.fit_result.sol does not have the expected MGE shape.")
+
+        # In mgefit this is already the analytic integral of each Gaussian
+        total_counts_per_gaussian = np.asarray(sol[0], dtype=float)
+
+        # Assume square pixels and that self.pixel_scale is in arcsec/pixel
+        pixel_area_sr = ((self.pixel_scale * u.arcsec) ** 2).to(u.sr)
+
+        # Convert the integrated model to a true flux
+        flux_components = total_counts_per_gaussian * sb_unit * pixel_area_sr
+        total_flux = flux_components.sum().to(flux_unit)
+
+        if ml is None:
+            if return_components:
+                return total_flux, flux_components.to(flux_unit)
+            return total_flux
+
+        ml = u.Quantity(ml)
+        if not ml.unit.is_equivalent(u.Msun / u.Lsun):
+            raise u.UnitConversionError(
+                f"`ml` must have units convertible to Msun/Lsun, got {ml.unit}"
+            )
+
+        if flux_to_lum is None:
+            raise ValueError(
+                "You passed `ml`, but the fit is in flux units. "
+                "Please also pass `flux_to_lum` with units like `u.Lsun/u.MJy` "
+                "to convert the integrated flux into luminosity before applying M/L."
+            )
+
+        flux_to_lum = u.Quantity(flux_to_lum)
+        lum_components = (flux_components.to(flux_unit) * flux_to_lum).to(u.Lsun)
+        mass_components = (lum_components * ml).to(u.Msun)
+        total_mass = mass_components.sum()
+
+        if return_components:
+            return total_mass, mass_components
+        return total_mass
+
 
     # runners
     def run_all(self, force_find=False, force_sectors=False, force_fit=False, save=True, load=True):
