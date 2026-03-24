@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # remember to set things to force=True if you want to re-run steps that have already been cached
     #runner.run_sectors()  # this will use the new geometry and overwrite any previous sectors
     #runner.run_fit() # 
-    runner.run_fit(force=True) # this will use the new geometry and overwrite any previous fit
+    #runner.run_fit(force=True) # this will use the new geometry and overwrite any previous fit
 
     # runner.set_deprojection(
     #     inclination_deg=86.12, # inclination in degrees (0 = face-on, 90 = edge-on)

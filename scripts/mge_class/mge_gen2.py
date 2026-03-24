@@ -1280,3 +1280,325 @@ class MGEFitter:
             "dens0": dens0,
             "sigma": sigma,
         }
+
+    def compute_enclosed_mass_profile(
+        self,
+        ml,
+        radii_arcsec=None,
+        rmax_arcsec=120,
+        npts=300,
+        flux_unit=u.MJy / u.sr,
+        flux_to_lsun=None,
+        distance=None,
+        inclination_deg=87,
+        checkplots_path=None,
+        prefix="mge",
+        show=False,
+        dpi=600,
+    ):
+        """
+        Compute the enclosed mass profile from the fitted MGE.
+
+        By default this returns the *projected* enclosed mass profile M(<R)
+        inside circular apertures on the sky.
+
+        If `inclination_deg` is provided, this instead performs an
+        axisymmetric-oblate deprojection of the MGE and returns the *3D
+        spherical* enclosed mass profile M(<r).
+
+        Parameters
+        ----------
+        ml : astropy.units.Quantity
+            Mass-to-light ratio, with units equivalent to Msun/Lsun.
+
+        radii_arcsec : array-like, optional
+            Radii in arcsec where the profile is evaluated.
+            If None, an automatic logarithmic grid is generated.
+
+        rmax_arcsec : float, optional
+            Maximum radius in arcsec for the automatic grid.
+
+        npts : int, optional
+            Number of radius points for the automatic grid.
+
+        flux_unit : astropy.units.Unit, optional
+            Surface-brightness unit of the fitted image.
+            Default is MJy/sr.
+
+        flux_to_lsun : astropy.units.Quantity, optional
+            Conversion factor from integrated flux to luminosity,
+            with units equivalent to Lsun / (integrated flux unit).
+            Needed unless the integrated MGE is already in luminosity units.
+
+        distance : astropy.units.Quantity, optional
+            Distance to the galaxy. Required if `flux_unit` is per physical area
+            (e.g. Lsun/pc^2 or Jy/pc^2). If None, tries self.distance or
+            self.distance_mpc if available.
+
+        inclination_deg : float, optional
+            Inclination in degrees, with 90 = edge-on.
+            If provided, compute the deprojected 3D spherical enclosed profile.
+            Assumes an oblate axisymmetric deprojection.
+
+        checkplots_path : str, optional
+            Directory where the enclosed-mass checkplot will be saved.
+            If None, tries self.checkplots_path, otherwise uses ".".
+
+        prefix : str, optional
+            Prefix for saved checkplot filename.
+
+        show : bool, optional
+            If True, show the plot interactively.
+
+        dpi : int, optional
+            DPI of saved figure.
+
+        Returns
+        -------
+        out : dict
+            Dictionary containing the profile and metadata.
+        """
+        if getattr(self, "fit_result", None) is None or not hasattr(self.fit_result, "sol"):
+            raise RuntimeError(
+                "run_fit() must be executed before compute_enclosed_mass_profile()."
+            )
+
+        ml = u.Quantity(ml)
+        if not ml.unit.is_equivalent(u.Msun / u.Lsun):
+            raise u.UnitConversionError("`ml` must have units equivalent to Msun/Lsun.")
+        ml = ml.to(u.Msun / u.Lsun)
+
+        sol = np.asarray(self.fit_result.sol, dtype=float)
+        if sol.ndim != 2 or sol.shape[0] < 3:
+            raise ValueError(
+                "fit_result.sol must contain at least [total_counts, sigma_pixels, q_obs]."
+            )
+
+        total_counts = np.asarray(sol[0], dtype=float)
+        sigma_pix = np.asarray(sol[1], dtype=float)
+        q_obs = np.asarray(sol[2], dtype=float)
+
+        if np.any(sigma_pix <= 0):
+            raise ValueError("All MGE sigma values must be positive.")
+
+        q_obs = np.clip(q_obs, 1e-6, 1.0)
+        sigma_arcsec = sigma_pix * float(self.pixel_scale)
+
+        if radii_arcsec is None:
+            if rmax_arcsec is None:
+                rmax_arcsec = 10.0 * np.max(sigma_arcsec)
+            rmin_arcsec = max(0.25 * float(self.pixel_scale), 1e-4 * np.max(sigma_arcsec))
+            radii_arcsec = np.geomspace(rmin_arcsec, rmax_arcsec, int(npts))
+        else:
+            radii_arcsec = np.asarray(radii_arcsec, dtype=float)
+            if radii_arcsec.ndim != 1 or radii_arcsec.size == 0:
+                raise ValueError("`radii_arcsec` must be a non-empty 1D array.")
+            if np.any(radii_arcsec < 0):
+                raise ValueError("`radii_arcsec` must be non-negative.")
+            if np.any(np.diff(radii_arcsec) <= 0):
+                raise ValueError("`radii_arcsec` must be strictly increasing.")
+
+        sb_unit = u.Unit(flux_unit)
+        pix_scale = float(self.pixel_scale) * u.arcsec
+
+        if distance is None:
+            if hasattr(self, "distance") and self.distance is not None:
+                distance = self.distance
+            elif hasattr(self, "distance_mpc") and self.distance_mpc is not None:
+                distance = self.distance_mpc if isinstance(self.distance_mpc, u.Quantity) else self.distance_mpc * u.Mpc
+
+        # Convert one pixel into the area corresponding to the denominator of flux_unit
+        if sb_unit.is_equivalent(u.Jy / u.sr):
+            pixel_area = (pix_scale.to(u.rad).value ** 2) * u.sr
+
+        elif sb_unit.is_equivalent(u.Jy / u.arcsec**2) or sb_unit.is_equivalent(u.Lsun / u.arcsec**2):
+            pixel_area = pix_scale**2
+
+        elif sb_unit.is_equivalent(u.Jy / u.pc**2) or sb_unit.is_equivalent(u.Lsun / u.pc**2):
+            if distance is None:
+                raise ValueError(
+                    "`distance` is required when `flux_unit` is per physical area (e.g. pc^2)."
+                )
+            distance = u.Quantity(distance).to(u.pc)
+            pixel_size = distance * pix_scale.to(u.rad).value
+            pixel_area = pixel_size**2
+
+        else:
+            raise ValueError(
+                "Unsupported `flux_unit`. Use a surface-brightness unit like "
+                "MJy/sr, Jy/arcsec^2, Lsun/arcsec^2, or Lsun/pc^2."
+            )
+
+        # total_counts are in (image unit) * pixel^2
+        component_flux = total_counts * sb_unit * pixel_area
+
+        # Convert integrated flux to luminosity
+        if component_flux.unit.is_equivalent(u.Lsun):
+            component_lum = component_flux.to(u.Lsun)
+        else:
+            if flux_to_lsun is None:
+                raise ValueError(
+                    "With the current `flux_unit`, the integrated MGE is not in luminosity units. "
+                    "Pass `flux_to_lsun` with units equivalent to "
+                    f"Lsun / ({component_flux.unit})."
+                )
+            flux_to_lsun = u.Quantity(flux_to_lsun)
+            target_unit = u.Lsun / component_flux.unit
+            if not flux_to_lsun.unit.is_equivalent(target_unit):
+                raise u.UnitConversionError(
+                    f"`flux_to_lsun` must have units equivalent to {target_unit}."
+                )
+            component_lum = (component_flux * flux_to_lsun).to(u.Lsun)
+
+        prepend_zero = radii_arcsec[0] > 0.0
+        if prepend_zero:
+            r_eval = np.concatenate(([0.0], radii_arcsec))
+        else:
+            r_eval = radii_arcsec.copy()
+
+        rr = r_eval[:, None]                # (nr, 1)
+        ss = sigma_arcsec[None, :]          # (1, ngauss)
+
+        if inclination_deg is None:
+            profile_type = "projected"
+            qq = q_obs[None, :]
+
+            t = rr**2 / (2.0 * ss**2)
+            beta = 0.5 * (1.0 / qq**2 - 1.0)
+
+            # dL/dR for observed 2D elliptical Gaussian inside circular aperture
+            kernel = (rr / (ss**2 * qq)) * np.exp(-t) * i0e(beta * t)
+
+            dLdr_val = np.sum(component_lum.value[None, :] * kernel, axis=1)
+            dLdr = dLdr_val * component_lum.unit / u.arcsec
+
+            intrinsic_q = None
+            inclination_used = None
+
+        else:
+            profile_type = "spherical_deprojected"
+            inclination_deg = float(inclination_deg)
+
+            if not (0.0 < inclination_deg <= 90.0):
+                raise ValueError("`inclination_deg` must satisfy 0 < inclination_deg <= 90.")
+
+            inc_rad = np.deg2rad(inclination_deg)
+            sini = np.sin(inc_rad)
+            cosi = np.cos(inc_rad)
+
+            # For oblate axisymmetric deprojection: q_obs^2 = cos^2 i + q_intr^2 sin^2 i
+            if np.any(q_obs < cosi - 1e-10):
+                min_allowed = np.degrees(np.arccos(np.min(q_obs)))
+                raise ValueError(
+                    f"This MGE cannot be deprojected at inclination {inclination_deg:.2f} deg "
+                    f"under the oblate-axisymmetric assumption. "
+                    f"A valid inclination must satisfy i >= {min_allowed:.2f} deg."
+                )
+
+            q_intr = np.sqrt(np.maximum(q_obs**2 - cosi**2, 0.0)) / sini
+            q_intr = np.clip(q_intr, 1e-6, 1.0)
+            qq = q_intr[None, :]
+
+            # 3D density:
+            # rho(R,z) = L / [ (sqrt(2pi) sigma)^3 q ] * exp[-(R^2 + z^2/q^2)/(2 sigma^2)]
+            #
+            # Spherical enclosed mass derivative:
+            # dL/dr = ∮ rho(r,theta) r^2 dOmega
+            A = rr**2 / (2.0 * ss**2)
+            C = A * (1.0 / qq**2 - 1.0)
+
+            C_safe = np.where(C > 0.0, C, 1.0)
+            ang_int = np.where(
+                C < 1e-12,
+                2.0 * np.exp(-A),
+                np.exp(-A) * np.sqrt(np.pi / C_safe) * erf(np.sqrt(C_safe))
+            )
+
+            kernel = (rr**2 / (np.sqrt(2.0 * np.pi) * ss**3 * qq)) * ang_int
+
+            dLdr_val = np.sum(component_lum.value[None, :] * kernel, axis=1)
+            dLdr = dLdr_val * component_lum.unit / u.arcsec
+
+            intrinsic_q = q_intr
+            inclination_used = inclination_deg
+
+        enclosed_lum_val = np.zeros_like(r_eval, dtype=float)
+        enclosed_lum_val[1:] = np.cumsum(
+            0.5 * (dLdr_val[1:] + dLdr_val[:-1]) * np.diff(r_eval)
+        )
+
+        enclosed_lum = enclosed_lum_val * component_lum.unit
+        enclosed_mass = (enclosed_lum * ml).to(u.Msun)
+        dMdr = (dLdr * ml).to(u.Msun / u.arcsec)
+
+        if prepend_zero:
+            enclosed_lum = enclosed_lum[1:]
+            enclosed_mass = enclosed_mass[1:]
+            dLdr = dLdr[1:]
+            dMdr = dMdr[1:]
+
+        total_flux = np.sum(component_flux)
+        total_lum = np.sum(component_lum)
+        total_mass = (total_lum * ml).to(u.Msun)
+        enclosed_fraction = (enclosed_lum / total_lum).to_value(u.dimensionless_unscaled)
+
+        # Save checkplot
+        if checkplots_path is None:
+            checkplots_path = getattr(self, "checkplots_path", ".")
+        os.makedirs(checkplots_path, exist_ok=True)
+
+        if profile_type == "projected":
+            plot_name = f"{prefix}_enclosed_mass_profile_projected.png"
+            title = "Projected enclosed mass profile"
+            xlabel = r"$R$ [arcsec]"
+        else:
+            plot_name = f"{prefix}_enclosed_mass_profile_3d.png"
+            title = f"3D spherical enclosed mass profile (i={inclination_deg:.1f} deg)"
+            xlabel = r"$r$ [arcsec]"
+
+        plot_path = os.path.join(checkplots_path, plot_name)
+
+        fig, ax = plt.subplots(figsize=(6.5, 5.0))
+        ax.plot(radii_arcsec, enclosed_mass.to_value(u.Msun), lw=2)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(r"Enclosed mass [$M_\odot$]")
+        ax.set_title(title)
+
+        if np.all(radii_arcsec > 0):
+            ax.set_xscale("log")
+        if np.all(enclosed_mass.to_value(u.Msun) > 0):
+            ax.set_yscale("log")
+
+        txt = (
+            f"Total mass = {total_mass.to_value(u.Msun):.3e} Msun\n"
+            f"M/L = {ml.to_value(u.Msun/u.Lsun):.3g} Msun/Lsun"
+        )
+        ax.text(
+            0.04, 0.96, txt,
+            transform=ax.transAxes,
+            ha="left", va="top",
+            bbox=dict(boxstyle="round", facecolor="white", alpha=0.85)
+        )
+        fig.tight_layout()
+        fig.savefig(plot_path, dpi=dpi, bbox_inches="tight")
+
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
+
+        return {
+            "profile_type": profile_type,
+            "radii_arcsec": radii_arcsec * u.arcsec,
+            "enclosed_luminosity": enclosed_lum,
+            "enclosed_mass": enclosed_mass,
+            "dLdr": dLdr,
+            "dMdr": dMdr,
+            "total_flux": total_flux,
+            "total_luminosity": total_lum,
+            "total_mass": total_mass,
+            "enclosed_fraction": enclosed_fraction,
+            "inclination_deg": inclination_used,
+            "intrinsic_q": intrinsic_q,
+            "checkplot_path": plot_path,
+        }
