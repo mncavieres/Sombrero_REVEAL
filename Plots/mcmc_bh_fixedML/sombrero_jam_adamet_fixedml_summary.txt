@@ -1,0 +1,37 @@
+Sombrero JAM + AdaMet (fixed M/L) summary
+=====================================
+
+MGE_PATH = /Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/mge_NAGN_0deg_pa_positive_gauss/mge_solution.csv
+KIN_PATH = /Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/IFU/antoine/M104_stellar_Kin.csv
+OUTPUT_PATH = /Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/mcmc_bh_fixedML
+
+DISTANCE_MPC = 9.55
+PIXEL_SCALE_ARCSEC = 0.031
+PIXEL_SIZE_KIN_ARCSEC = 1
+PA_OFFSET_DEG = 0.0
+FIXED_ML = 0.86
+FIT_INCLINATION = False
+INC_FIXED_DEG = 87.0
+LG_MBH_MIN = 7.0
+LG_MBH_MAX = 10.2
+NSTEP = 1000
+NCHAIN = 1
+BURN_FRAC = 0.5
+goodbins_used = 510 / 510
+
+Posterior median +/- 1 sigma:
+sigma_z/sigma_R = 1.1992757 +/- 0.0000035
+    log_10 M_BH = 8.76 +/- 0.32
+
+Best-fit inclination [deg] = 87.000000
+Median inclination [deg] = 87.000000
+Best-fit sigma_z/sigma_R = 1.199276
+Median sigma_z/sigma_R = 1.199276
+Best-fit log10(M_BH/Msun) = 8.758556
+Median log10(M_BH/Msun) = 8.760000
+Median M_BH [Msun] = 5.754399e+08
+16th percentile M_BH [Msun] = 1.325446e+08
+84th percentile M_BH [Msun] = 5.735294e+08
+Fixed M/L = 0.860000
+JAM reduced chi2 (best sample) = 242957254.923151
+JAM kappa for velocity check plot = 0.098294

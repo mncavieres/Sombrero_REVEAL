@@ -1,0 +1,53 @@
+Sombrero JAM + dynesty summary [sombrero_jam_dynamic_fixedml_manualcheck]
+============================================================
+
+partial_snapshot = True
+MGE_PATH = /Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/mge_NAGN_0deg_pa_positive_gauss/mge_solution.csv
+KIN_PATH = /Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/IFU/antoine/M104_stellar_Kin.csv
+OUTPUT_PATH = /Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/mcmc_bh
+CHECKPOINT_FILE = /Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/mcmc_bh/sombrero_jam_dynamic_fixedml_checkpoint.save
+
+DISTANCE_MPC = 9.55
+PIXEL_SCALE_ARCSEC = 0.031
+PIXEL_SIZE_KIN_ARCSEC = 0.103
+PA_OFFSET_DEG = 0.0
+FIXED_ML = 0.86
+FIT_INCLINATION = False
+INC_FIXED_DEG = 87.0
+LG_MBH_MIN = 7.0
+LG_MBH_MAX = 10.2
+RATIO_MIN = 0.5
+RATIO_MAX = 1.2
+SAMPLER = DynamicNestedSampler
+NLIVE_INIT = 500
+NLIVE_BATCH = 500
+DLOGZ_INIT = 0.5
+N_EFFECTIVE_INIT = 3000
+N_EFFECTIVE_TARGET = 15000
+MAXBATCH = None
+SAMPLE = rwalk
+BOUND = multi
+WALKS = 32
+USE_MULTIPROCESSING = True
+NCPU = 8
+goodbins_used = 510 / 510
+nsamples = 2030
+logZ = -143145.231171
+logZerr = 0.147720
+
+Posterior median +/- 1 sigma:
+     $\sigma_z/\sigma_R$ = 0.519807  -0.002763  +0.002763
+  $\log_{10} M_{\rm BH}$ = 10.140872  -0.000261  +0.000261
+
+Best-fit inclination [deg] = 87.000000
+Median inclination [deg] = 87.000000
+Best-fit sigma_z/sigma_R = 0.523829
+Median sigma_z/sigma_R = 0.519807
+Best-fit log10(M_BH/Msun) = 10.141252
+Median log10(M_BH/Msun) = 10.140872
+Median M_BH [Msun] = 1.383159e+10
+16th percentile M_BH [Msun] = 1.382328e+10
+84th percentile M_BH [Msun] = 1.383989e+10
+Fixed M/L = 0.860000
+JAM reduced chi2 (best sample) = 561.310877
+JAM kappa for velocity check plot = nan
