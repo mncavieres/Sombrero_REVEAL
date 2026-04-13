@@ -783,7 +783,7 @@ def compute_bestfit_losv_model(
         moment="z",
         epsrel=1e-2,
         plot=False,
-        quiet=True,
+        quiet=False,
     )
 
     model = np.asarray(out.model, dtype=float)

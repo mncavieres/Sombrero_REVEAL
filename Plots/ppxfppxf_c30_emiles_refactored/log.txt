@@ -1,0 +1,157 @@
+ppxf_refactored_full_musecube.py
+Velocity scale of the data: 50.32 km/s per pixel
+Bin-accretion Delaunay...
+338  initial bins.
+173  good bins.
+Regularization...
+Bins: 173; Single Pixels: 0/90000
+Capacity Fractional RMS Scatter (%): 6.00
+Time Accretion: 1.99 s
+Time Regularization (it=49): 0.34 s
+ Best Fit:       Vel     sigma
+ comp.  0:       -14       288
+chi2/DOF: 18.45; DOF: 2363; degree = 8; mdegree = 0
+method = capfit; Jac calls: 4; Func calls: 14; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 2/150
+ Best Fit:       Vel     sigma
+ comp.  0:       -20       302
+chi2/DOF: 0.8536; DOF: 2300; degree = 8; mdegree = 0
+method = capfit; Jac calls: 3; Func calls: 11; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 3/150
+ Best Fit:       Vel     sigma
+ comp.  0:       -20       302
+chi2/DOF: 1.000; DOF: 2300; degree = 8; mdegree = 0
+method = capfit; Jac calls: 1; Func calls: 5; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 3/150
+Population regularization: regul=41.6, target Δχ²=67.85, achieved Δχ²=67.83
+Weighted <lg_age> [yr]: 10.2
+Weighted <[M/H]>: 0.220
+bin   1/173  V=  -19.94±  2.70  sigma= 301.52±  2.59  logAge= 10.179  [M/H]=  0.220  regul=   41.59
+ Best Fit:       Vel     sigma
+ comp.  0:       109       263
+chi2/DOF: 13.39; DOF: 2363; degree = 8; mdegree = 0
+method = capfit; Jac calls: 4; Func calls: 14; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 4/150
+ Best Fit:       Vel     sigma
+ comp.  0:       116       266
+chi2/DOF: 0.9055; DOF: 2309; degree = 8; mdegree = 0
+method = capfit; Jac calls: 2; Func calls: 8; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 3/150
+ Best Fit:       Vel     sigma
+ comp.  0:       116       266
+chi2/DOF: 1.000; DOF: 2309; degree = 8; mdegree = 0
+method = capfit; Jac calls: 2; Func calls: 8; Status: 3
+linear_method = lsq_box; Nonzero Templates (>0.1%): 3/150
+Population regularization: regul=45.4, target Δχ²=67.99, achieved Δχ²=67.84
+Weighted <lg_age> [yr]: 10.2
+Weighted <[M/H]>: 0.219
+bin   2/173  V=  115.72±  2.38  sigma= 265.81±  2.25  logAge= 10.175  [M/H]=  0.219  regul=   45.36
+ Best Fit:       Vel     sigma
+ comp.  0:        51       287
+chi2/DOF: 14.69; DOF: 2363; degree = 8; mdegree = 0
+method = capfit; Jac calls: 4; Func calls: 14; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 3/150
+ Best Fit:       Vel     sigma
+ comp.  0:        50       297
+chi2/DOF: 0.8970; DOF: 2298; degree = 8; mdegree = 0
+method = capfit; Jac calls: 3; Func calls: 11; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 3/150
+ Best Fit:       Vel     sigma
+ comp.  0:        50       297
+chi2/DOF: 1.000; DOF: 2298; degree = 8; mdegree = 0
+method = capfit; Jac calls: 1; Func calls: 5; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 3/150
+Population regularization: regul=42.6, target Δχ²=67.82, achieved Δχ²=67.77
+Weighted <lg_age> [yr]: 10.2
+Weighted <[M/H]>: 0.220
+bin   3/173  V=   50.27±  2.62  sigma= 297.35±  2.49  logAge= 10.178  [M/H]=  0.220  regul=   42.62
+Emission lines included in gas templates:
+['Hbeta' 'Halpha' '[SII]6716' '[SII]6731' 'HeI5876' '[OIII]5007_d'
+ '[OI]6300_d' '[NII]6583_d']
+differential_evolution step 1: f(x)= 8001.59720079718
+differential_evolution step 2: f(x)= 8001.59720079718
+ Best Fit:       Vel     sigma
+ comp.  0:        15       268
+ comp.  1:        26        63
+ comp.  2:      -379        63
+ comp.  3:      -177       701
+chi2/DOF: 3.026; DOF: 2644; degree = 8; mdegree = 0
+Global search - Func calls: 155
+method = capfit; Jac calls: 2; Func calls: 12; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 16/25
+Tied parameters:
+ p[5] = p[3]
+ p[6] = (p[2] + p[4])/2
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+gas_component           name        flux       err      V     sig
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Comp:  1             Hbeta_(1)      93.08       27.      26    63
+Comp:  1            Halpha_(1)      4.002       26.      26    63
+Comp:  1         [SII]6716_(1)      0.000       26.      26    63
+Comp:  1         [SII]6731_(1)      14.25       26.      26    63
+Comp:  1           HeI5876_(1)      26.91       26.      26    63
+Comp:  1      [OIII]5007_d_(1)      187.4       34.      26    63
+Comp:  1        [OI]6300_d_(1)      0.000       32.      26    63
+Comp:  1       [NII]6583_d_(1)      0.000       32.      26    63
+Comp:  2             Hbeta_(2)      39.23       27.    -379    63
+Comp:  2            Halpha_(2)      0.000       27.    -379    63
+Comp:  2         [SII]6716_(2)      21.75       26.    -379    63
+Comp:  2         [SII]6731_(2)      0.000       26.    -379    63
+Comp:  2           HeI5876_(2)      175.4       26.    -379    63
+Comp:  2      [OIII]5007_d_(2)      0.000       34.    -379    63
+Comp:  2        [OI]6300_d_(2)      8.967       32.    -379    63
+Comp:  2       [NII]6583_d_(2)      57.96       32.    -379    63
+Comp:  3             Hbeta_(3)      259.7       86.    -177   701
+Comp:  3            Halpha_(3)      8.186   1.3e+02    -177   701
+Comp:  3         [SII]6716_(3)      90.75   1.3e+02    -177   701
+Comp:  3         [SII]6731_(3)      0.000   1.3e+02    -177   701
+Comp:  3           HeI5876_(3)      6.161       83.    -177   701
+Comp:  3      [OIII]5007_d_(3)      0.000   1.1e+02    -177   701
+Comp:  3        [OI]6300_d_(3)      106.2   1.0e+02    -177   701
+Comp:  3       [NII]6583_d_(3)      190.8   1.5e+02    -177   701
+-----------------------------------------------------------------
+ Best Fit:       Vel     sigma
+ comp.  0:        15       268
+ comp.  1:        24        59
+ comp.  2:      -381        59
+ comp.  3:      -178       718
+chi2/DOF: 1.000; DOF: 2644; degree = 8; mdegree = 0
+method = capfit; Jac calls: 1; Func calls: 7; Status: 2
+linear_method = lsq_box; Nonzero Templates (>0.1%): 16/25
+Tied parameters:
+ p[5] = p[3]
+ p[6] = (p[2] + p[4])/2
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+gas_component           name        flux       err      V     sig
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Comp:  1             Hbeta_(1)      92.24       47.      24    59
+Comp:  1            Halpha_(1)      2.846       44.      24    59
+Comp:  1         [SII]6716_(1)      0.000       43.      24    59
+Comp:  1         [SII]6731_(1)      13.15       44.      24    59
+Comp:  1           HeI5876_(1)      27.46       44.      24    59
+Comp:  1      [OIII]5007_d_(1)      184.4       58.      24    59
+Comp:  1        [OI]6300_d_(1)      0.000       54.      24    59
+Comp:  1       [NII]6583_d_(1)      0.000       55.      24    59
+Comp:  2             Hbeta_(2)      38.66       47.    -381    59
+Comp:  2            Halpha_(2)      0.000       45.    -381    59
+Comp:  2         [SII]6716_(2)      20.17       44.    -381    59
+Comp:  2         [SII]6731_(2)      0.000       43.    -381    59
+Comp:  2           HeI5876_(2)      173.5       44.    -381    59
+Comp:  2      [OIII]5007_d_(2)      0.000       58.    -381    59
+Comp:  2        [OI]6300_d_(2)      7.447       54.    -381    59
+Comp:  2       [NII]6583_d_(2)      57.15       55.    -381    59
+Comp:  3             Hbeta_(3)      261.7   1.5e+02    -178   718
+Comp:  3            Halpha_(3)      6.799   2.4e+02    -178   718
+Comp:  3         [SII]6716_(3)      96.37   2.3e+02    -178   718
+Comp:  3         [SII]6731_(3)      0.000   2.3e+02    -178   718
+Comp:  3           HeI5876_(3)      7.438   1.4e+02    -178   718
+Comp:  3      [OIII]5007_d_(3)      0.000   1.9e+02    -178   718
+Comp:  3        [OI]6300_d_(3)      112.9   1.8e+02    -178   718
+Comp:  3       [NII]6583_d_(3)      200.9   2.6e+02    -178   718
+-----------------------------------------------------------------
+Halpha       - Amplitude/Noise:   0.049; gas flux:       3.13
+Hbeta        - Amplitude/Noise:   1.385; gas flux:       75.3
+[NII]6583_d  - Amplitude/Noise:   0.000; gas flux:          0
+[OIII]5007_d - Amplitude/Noise:   2.178; gas flux:        155
+Saved FITS products to: /Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/ppxfppxf_c30_emiles_refactored/c30_DATACUBE_normppxf_skycont_Part1_0000_ppxf_products_emiles.fits
+Saved NPZ products  to: /Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/ppxfppxf_c30_emiles_refactored/c30_DATACUBE_normppxf_skycont_Part1_0000_ppxf_products_emiles.npz
