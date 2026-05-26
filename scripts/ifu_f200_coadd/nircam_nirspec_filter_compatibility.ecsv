@@ -1,0 +1,43 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: filter, datatype: string}
+# - {name: wave_min_micron, datatype: float64}
+# - {name: wave_max_micron, datatype: float64}
+# - {name: weighted_mean_micron, datatype: float64}
+# - {name: g235_response_fraction, datatype: float64}
+# - {name: g235_compatible, datatype: bool}
+# - {name: g395_response_fraction, datatype: float64}
+# - {name: g395_compatible, datatype: bool}
+# - {name: throughput_path, datatype: string}
+# schema: astropy-2.0
+filter wave_min_micron wave_max_micron weighted_mean_micron g235_response_fraction g235_compatible g395_response_fraction g395_compatible throughput_path
+F070W 0.6051500244140625 0.7921500244140625 0.7063797874216065 0.0 False 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F070W_May2024_mean_system_throughput.txt
+F090W 0.7885499877929687 1.0235499877929688 0.9044727333787416 0.0 False 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F090W_May2024_mean_system_throughput.txt
+F115W 0.9982000122070313 1.305199951171875 1.1568249087031925 0.0 False 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F115W_May2024_mean_system_throughput.txt
+F140M 1.3043499755859376 1.5053499755859374 1.406051615002429 0.0 False 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F140M_May2024_mean_system_throughput.txt
+F150W 1.3037900390625 1.6937900390625 1.5041424963995187 0.02840359337282453 False 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F150W_May2024_mean_system_throughput.txt
+F162M 1.5124000244140623 1.7434000244140626 1.6280301903092738 0.31391159823834425 False 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F162M_May2024_mean_system_throughput.txt
+F164N 1.6174000244140625 1.6714000244140623 1.6445284457131528 0.031199407395411438 False 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F164N_May2024_mean_system_throughput.txt
+F150W2 0.973 2.38 1.7190034096909437 0.5576616687692411 False 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F150W2_May2024_mean_system_throughput.txt
+F182M 1.6955 2.0005 1.8466388057340484 0.9999925474383738 True 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F182M_May2024_mean_system_throughput.txt
+F187N 1.845199951171875 1.902199951171875 1.8740746445818277 1.0 True 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F187N_May2024_mean_system_throughput.txt
+F200W 1.7244000244140625 2.26039990234375 1.9923344161139764 1.0 True 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F200W_May2024_mean_system_throughput.txt
+F210M 1.9615999755859372 2.23260009765625 2.0965166624271236 1.0 True 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F210M_May2024_mean_system_throughput.txt
+F212N 2.090300048828125 2.152300048828125 2.121272998566483 1.0 True 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F212N_May2024_mean_system_throughput.txt
+F250M 2.393525104 2.616904767 2.5037063084777453 1.0 True 0.0 False Data/for_antoine/nircam_throughputs/mean_throughputs/F250M_May2024_mean_system_throughput.txt
+F277W 2.367103853 3.218588699 2.784083391864833 0.9975363825493884 True 0.38402345556121237 False Data/for_antoine/nircam_throughputs/mean_throughputs/F277W_May2024_mean_system_throughput.txt
+F300M 2.772726912 3.2470091470000004 2.9977033291242647 0.9849655246760685 True 0.8785401436681558 True Data/for_antoine/nircam_throughputs/mean_throughputs/F300M_May2024_mean_system_throughput.txt
+F323N 3.205120973 3.275385007 3.2367812529977837 2.4179845115654954e-05 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F323N_May2024_mean_system_throughput.txt
+F322W2 2.383192271 4.122607119 3.285750903861572 0.4092238858411634 False 0.7616716109156385 True Data/for_antoine/nircam_throughputs/mean_throughputs/F322W2_May2024_mean_system_throughput.txt
+F335M 3.11864216 3.641568727 3.3640777391288403 0.018790288103008045 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F335M_May2024_mean_system_throughput.txt
+F356W 3.067295366 4.078016482 3.5740357536513385 0.04321989022635942 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F356W_May2024_mean_system_throughput.txt
+F360M 3.322678108 3.902356395 3.6252327481086914 1.0471182086331597e-05 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F360M_May2024_mean_system_throughput.txt
+F405N 4.011806141 4.096933722 4.053148323768971 0.0 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F405N_May2024_mean_system_throughput.txt
+F410M 3.77534064 4.403663259 4.085127069473525 0.0 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F410M_May2024_mean_system_throughput.txt
+F430M 4.122607119 4.444200202 4.281854969590489 0.0 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F430M_May2024_mean_system_throughput.txt
+F444W 3.802365268 5.121167153 4.4133158979790785 0.0 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F444W_May2024_mean_system_throughput.txt
+F460M 4.465819905 4.813086384999999 4.630159289830574 0.0 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F460M_May2024_mean_system_throughput.txt
+F466N 4.60229428 4.703636638 4.654440602262002 0.0 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F466N_May2024_mean_system_throughput.txt
+F470N 4.656343538 4.756334664 4.707813817749517 0.0 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F470N_May2024_mean_system_throughput.txt
+F480M 4.582025809 5.087386367 4.8175848188927946 0.0 False 1.0 True Data/for_antoine/nircam_throughputs/mean_throughputs/F480M_May2024_mean_system_throughput.txt

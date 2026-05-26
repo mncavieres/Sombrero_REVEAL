@@ -1,0 +1,7 @@
+astropy
+astroquery
+matplotlib
+numpy
+reproject
+shapely
+scipy

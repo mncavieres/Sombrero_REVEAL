@@ -10,7 +10,6 @@ import capfit
 from adamet.adamet import adamet
 from adamet.corner_plot import corner_plot
 from plotbin.plot_velfield import plot_velfield
-from plotbin.symmetrize_velfield import symmetrize_velfield
 import os
 
 
@@ -23,6 +22,8 @@ KIN_SEP = ";"
 OUTPUT_PATH = "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/mcmc_bh_2"
 
 DISTANCE_MPC = 9.55
+SYSTEMIC_REDSHIFT = 0.003633
+SYSTEMIC_VELOCITY_KMS = 299792.458 * SYSTEMIC_REDSHIFT
 PIXEL_SCALE_ARCSEC = 0.031          # JWST image scale used for the MGE fit
 PIXEL_SIZE_KIN_ARCSEC = 0.103       # NIRSpec spaxel/bin size; replace if different
 M_SUN_AB_F200W = 4.93               # your adopted solar absolute AB magnitude
@@ -136,14 +137,25 @@ def eval_mge_surface_brightness(x, y, surf, sigma, q_obs):
 
 
 
+def systemic_subtracted_velocity(kin):
+    """Return the velocity field that should enter Vrms."""
+    if "V_REL_KMS" in kin.colnames:
+        err_col = "V_REL_ERR_KMS" if "V_REL_ERR_KMS" in kin.colnames else "LOSV_err"
+        return np.asarray(kin["V_REL_KMS"], dtype=float), np.asarray(kin[err_col], dtype=float)
+    return (
+        np.asarray(kin["LOSV"], dtype=float) - SYSTEMIC_VELOCITY_KMS,
+        np.asarray(kin["LOSV_err"], dtype=float),
+    )
+
+
+
 def load_kinematics_table(path, sep=KIN_SEP):
     """Read the Antoine-format CSV and compute Vrms and its uncertainty."""
     kin = Table.read(path, format="ascii.csv", delimiter=sep)
 
     x = np.asarray(kin["X"], dtype=float)
     y = np.asarray(kin["Y"], dtype=float)
-    vel = np.asarray(kin["LOSV"], dtype=float)
-    evel = np.asarray(kin["LOSV_err"], dtype=float)
+    vel, evel = systemic_subtracted_velocity(kin)
     sig = np.asarray(kin["sigma"], dtype=float)
     esig = np.asarray(kin["sigma_err"], dtype=float)
 
@@ -349,10 +361,8 @@ print(f"reduced chi2 reported by JAM = {out.chi2:.3f}")
 fig = corner_plot(pars, lnprob, labels=labels, extents=bounds)
 fig.text(0.34, 0.99, txt.latex, ha="left", va="top")
 
-# Symmetrized data for prettier display only.
-rms_sym = rms.copy()
-rms_sym[goodbins] = symmetrize_velfield(xbin[goodbins], ybin[goodbins], rms[goodbins])
-vmin, vmax = np.percentile(rms_sym[goodbins], [0.5, 99.5])
+# Use the raw unsymmetrized Vrms field in the diagnostic panel.
+vmin, vmax = np.percentile(rms[goodbins], [0.5, 99.5])
 
 dx = 0.24
 yfac = 0.87
@@ -361,7 +371,7 @@ fig.add_axes([0.69, 0.99 - dx * yfac, dx, dx * yfac])
 plot_velfield(
     xbin,
     ybin,
-    rms_sym,
+    rms,
     vmin=vmin,
     vmax=vmax,
     linescolor="w",

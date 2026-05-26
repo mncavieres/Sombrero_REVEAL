@@ -135,6 +135,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+venvs/ifu_f200_coadd/
+venvs/conda_pkgs/
 
 # Spyder project settings
 .spyderproject

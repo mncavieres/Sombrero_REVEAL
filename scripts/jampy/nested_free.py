@@ -37,6 +37,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import logging
+import shutil
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -85,6 +86,10 @@ class Config:
     dlogz_init: float = 0.0001
     checkpoint_every_sec: float = 30.0
     checkpoint_filename: str = "checkpoint.save"
+    bound_method: str = "multi"
+    sample_method: str = "unif"
+    walks: int = 32
+    bootstrap: int = 20
 
     bh_mass_min: float = 1e6
     bh_mass_max: float = 1e10
@@ -431,6 +436,21 @@ def compute_rest_frame_vlos(losv: np.ndarray, z: float) -> np.ndarray:
     return losv - z * c_kms
 
 
+def read_systemic_subtracted_vlos(
+    kin_table: Table,
+    vlos_obs: np.ndarray,
+    cfg: Config,
+) -> tuple[np.ndarray, np.ndarray, str]:
+    if "V_REL_KMS" in kin_table.colnames:
+        vlos_rf = np.asarray(kin_table["V_REL_KMS"], dtype=float)
+        err_col = "V_REL_ERR_KMS" if "V_REL_ERR_KMS" in kin_table.colnames else "LOSV_err"
+        vlos_err = np.asarray(kin_table[err_col], dtype=float)
+        return vlos_rf, vlos_err, f"V_REL_KMS/{err_col}"
+
+    vlos_err = np.asarray(kin_table["LOSV_err"], dtype=float)
+    return compute_rest_frame_vlos(vlos_obs, cfg.redshift), vlos_err, "LOSV - z*c"
+
+
 def compute_vrms_and_error(
     vlos_rf: np.ndarray,
     vlos_err: np.ndarray,
@@ -452,6 +472,8 @@ def compute_vrms_and_error(
 
 
 def load_kinematics(cfg: Config) -> Kinematics:
+    # Preserve the original bin-by-bin measurements: no kinematic symmetrization
+    # is applied before fitting or before writing the diagnostic maps.
     kin_table = Table.read(cfg.kin_path, format="csv", delimiter=";")
 
     x = np.asarray(kin_table["X"], dtype=float)
@@ -462,12 +484,17 @@ def load_kinematics(cfg: Config) -> Kinematics:
     kin_table["Y_rot"] = y_rot
 
     vlos_obs = np.asarray(kin_table["LOSV"], dtype=float)
-    vlos_err = np.asarray(kin_table["LOSV_err"], dtype=float)
     sigma = np.asarray(kin_table["sigma"], dtype=float)
     sigma_err = np.asarray(kin_table["sigma_err"], dtype=float)
 
-    vlos_rf = compute_rest_frame_vlos(vlos_obs, cfg.redshift)
+    vlos_rf, vlos_err, velocity_source = read_systemic_subtracted_vlos(kin_table, vlos_obs, cfg)
+    logging.info("Computing Vrms from systemic-subtracted velocity source: %s", velocity_source)
     vrms, vrms_err = compute_vrms_and_error(vlos_rf, vlos_err, sigma, sigma_err)
+
+    kin_table["VLOS_FOR_VRMS"] = vlos_rf
+    kin_table["VLOS_FOR_VRMS_ERR"] = vlos_err
+    kin_table["Vrms"] = vrms
+    kin_table["Vrms_err"] = vrms_err
 
     goodbins = (
         np.isfinite(x_rot)
@@ -980,9 +1007,66 @@ def save_vrms_bestfit_plot(
 # dynesty run
 # -----------------------------------------------------------------------------
 
+def restored_sample_method(sampler) -> str:
+    internal_sampler = getattr(getattr(sampler, "sampler", None), "internal_sampler", None)
+    name = type(internal_sampler).__name__.lower()
+
+    if "rwalk" in name:
+        return "rwalk"
+    if "rslice" in name:
+        return "rslice"
+    if name == "slicesampler" or ("slice" in name and "rslice" not in name):
+        return "slice"
+    if "uniform" in name or "unif" in name:
+        return "unif"
+
+    return name or "unknown"
+
+
+def checkpoint_backup_path(cp_file: Path, label: str) -> Path:
+    safe_label = "".join(ch if ch.isalnum() or ch in ("_", "-") else "_" for ch in label)
+    candidate = cp_file.with_name(f"{cp_file.stem}.incompatible_{safe_label}{cp_file.suffix}")
+    counter = 1
+    while candidate.exists():
+        candidate = cp_file.with_name(
+            f"{cp_file.stem}.incompatible_{safe_label}_{counter}{cp_file.suffix}"
+        )
+        counter += 1
+    return candidate
+
+
+def restore_sampler_with_compatibility_check(cp_file: Path, sample_method: str, *, pool=None):
+    sampler = DynamicNestedSampler.restore(str(cp_file), pool=pool)
+    restored_method = restored_sample_method(sampler)
+    restored_bound = getattr(sampler, "bounding", "unknown")
+    restored_bootstrap = getattr(sampler, "bound_bootstrap", "unknown")
+
+    logging.info(
+        "Restored checkpoint sampler metadata: sample='%s', bound='%s', bootstrap=%s",
+        restored_method,
+        restored_bound,
+        restored_bootstrap,
+    )
+
+    if restored_method != sample_method.lower():
+        backup_path = checkpoint_backup_path(cp_file, restored_method)
+        shutil.move(str(cp_file), str(backup_path))
+        raise RuntimeError(
+            "Checkpoint sampler mode mismatch: "
+            f"checkpoint uses '{restored_method}' but config requests '{sample_method}'. "
+            f"Moved old checkpoint to {backup_path} and will start a fresh run."
+        )
+
+    return sampler
+
+
 def run_sampler(cfg: Config, log_likelihood_fn, prior_transform_fn, n_mge: int):
     cp_file = checkpoint_path(cfg)
     ndim = get_ndim(cfg, n_mge)
+    bound_method = getattr(cfg, "bound_method", "multi")
+    sample_method = getattr(cfg, "sample_method", "unif")
+    walks = int(getattr(cfg, "walks", 32))
+    bootstrap = int(getattr(cfg, "bootstrap", 20))
 
     try:
         with Pool(cfg.nprocs, log_likelihood_fn, prior_transform_fn) as pool:
@@ -992,7 +1076,11 @@ def run_sampler(cfg: Config, log_likelihood_fn, prior_transform_fn, n_mge: int):
             if cp_file.exists():
                 try:
                     logging.info("Restoring sampler from %s", cp_file)
-                    sampler = DynamicNestedSampler.restore(str(cp_file), pool=pool)
+                    sampler = restore_sampler_with_compatibility_check(
+                        cp_file,
+                        sample_method,
+                        pool=pool,
+                    )
                     restored = True
                 except Exception as exc:
                     logging.warning(
@@ -1003,7 +1091,14 @@ def run_sampler(cfg: Config, log_likelihood_fn, prior_transform_fn, n_mge: int):
                     sampler = None
 
             if sampler is None:
-                logging.info("Starting a new parallel sampler with ndim=%d", ndim)
+                logging.info(
+                    "Starting a new parallel sampler with ndim=%d, bound='%s', sample='%s', walks=%d, bootstrap=%d",
+                    ndim,
+                    bound_method,
+                    sample_method,
+                    walks,
+                    bootstrap,
+                )
                 sampler = DynamicNestedSampler(
                     pool.loglike,
                     pool.prior_transform,
@@ -1012,6 +1107,10 @@ def run_sampler(cfg: Config, log_likelihood_fn, prior_transform_fn, n_mge: int):
                     pool=pool,
                     queue_size=cfg.nprocs,
                     use_pool={"prior_transform": False},
+                    bound=bound_method,
+                    sample=sample_method,
+                    walks=walks,
+                    bootstrap=bootstrap,
                 )
 
             if restored:
@@ -1039,7 +1138,11 @@ def run_sampler(cfg: Config, log_likelihood_fn, prior_transform_fn, n_mge: int):
         if cp_file.exists():
             try:
                 logging.info("Restoring serial sampler from %s", cp_file)
-                sampler = DynamicNestedSampler.restore(str(cp_file))
+                sampler = restore_sampler_with_compatibility_check(
+                    cp_file,
+                    sample_method,
+                    pool=None,
+                )
                 restored = True
             except Exception as restore_exc:
                 logging.warning(
@@ -1050,12 +1153,23 @@ def run_sampler(cfg: Config, log_likelihood_fn, prior_transform_fn, n_mge: int):
                 sampler = None
 
         if sampler is None:
-            logging.info("Starting a new serial sampler with ndim=%d", ndim)
+            logging.info(
+                "Starting a new serial sampler with ndim=%d, bound='%s', sample='%s', walks=%d, bootstrap=%d",
+                ndim,
+                bound_method,
+                sample_method,
+                walks,
+                bootstrap,
+            )
             sampler = DynamicNestedSampler(
                 log_likelihood_fn,
                 prior_transform_fn,
                 ndim=ndim,
                 nlive=cfg.nlive,
+                bound=bound_method,
+                sample=sample_method,
+                walks=walks,
+                bootstrap=bootstrap,
             )
 
         if restored:
@@ -1123,13 +1237,10 @@ def save_results(cfg: Config, results, kin: Kinematics, mge: MGEInputs) -> None:
 
 
 # -----------------------------------------------------------------------------
-# Main
+# Main / wrappers
 # -----------------------------------------------------------------------------
 
-def main() -> None:
-    setup_logging()
-    cfg = Config()
-
+def run_with_config(cfg: Config) -> None:
     ensure_output_dir(cfg.output_dir)
 
     logging.info("Loading and preparing kinematics")
@@ -1161,6 +1272,11 @@ def main() -> None:
     save_results(cfg, results, kin, mge)
 
     logging.info("Done")
+
+
+def main() -> None:
+    setup_logging()
+    run_with_config(Config())
 
 
 if __name__ == "__main__":

@@ -1,0 +1,12 @@
+name: ifu_f200_coadd
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - astropy
+  - astroquery
+  - matplotlib-base
+  - numpy
+  - reproject
+  - shapely
+  - scipy
