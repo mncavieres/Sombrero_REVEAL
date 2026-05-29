@@ -1,0 +1,7 @@
+# Lambda  FWHM
+# Approximate JWST/NIRSpec G235H instrumental FWHM in Angstrom, using R=2700.
+16000.0   5.925926
+20000.0   7.407407
+24000.0   8.888889
+28000.0  10.370370
+32000.0  11.851852

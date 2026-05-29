@@ -1,0 +1,4 @@
+MUSE XSL targeted kinematic checkplots
+Central peak-sigma radius: 0.50 arcsec
+brightest_spaxel: spaxel=44248, bin=0, x=0.000, y=0.000, sigma=303.27 km/s, h3=-0.0164, h4=+0.1258, S/N=67.76, plot=/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/ppxfppxf_c30_xsl_consistent/xsl_check_brightest_spaxel.png
+highest_sigma_within_0.50arcsec: spaxel=44248, bin=0, x=0.000, y=0.000, sigma=303.27 km/s, h3=-0.0164, h4=+0.1258, S/N=67.76, plot=/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/ppxfppxf_c30_xsl_consistent/xsl_check_highest_sigma_within_0p50arcsec.png

@@ -1,0 +1,43 @@
+{
+  "name": "sigtool-codesign",
+  "version": "0.1.3",
+  "build": "hc0f2934_0",
+  "build_number": 0,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "sigtool-codesign-0.1.3-hc0f2934_0.conda",
+  "md5": "1261fc730f1d8af7eeea8a0024b23493",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/sigtool-codesign-0.1.3-hc0f2934_0.conda",
+  "sha256": "b89d89d0b62e0a84093205607d071932cca228d4d6982a5b073eec7e765b146d",
+  "depends": [
+    "__osx >=10.13",
+    "libsigtool 0.1.3 hc0f2934_0",
+    "openssl >=3.5.4,<4.0a0"
+  ],
+  "constrains": [],
+  "license": "MIT",
+  "timestamp": 1767045007000,
+  "size": 123083,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/sigtool-codesign-0.1.3-hc0f2934_0.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/sigtool-codesign-0.1.3-hc0f2934_0",
+  "files": [
+    "bin/sigtool-codesign"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "bin/sigtool-codesign",
+        "path_type": "hardlink",
+        "sha256": "8f0143131c340338b6c0e8ce44e8511d51770d9c3ae4d51674de956ec4c59f21",
+        "size_in_bytes": 406032,
+        "sha256_in_prefix": "8f0143131c340338b6c0e8ce44e8511d51770d9c3ae4d51674de956ec4c59f21"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/sigtool-codesign-0.1.3-hc0f2934_0",
+    "type": 1
+  }
+}

@@ -1,0 +1,212 @@
+{
+  "name": "bzip2",
+  "version": "1.0.8",
+  "build": "h500dc9f_9",
+  "build_number": 9,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "bzip2-1.0.8-h500dc9f_9.conda",
+  "md5": "4173ac3b19ec0a4f400b4f782910368b",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/bzip2-1.0.8-h500dc9f_9.conda",
+  "sha256": "9f242f13537ef1ce195f93f0cc162965d6cc79da578568d6d8e50f70dd025c42",
+  "depends": [
+    "__osx >=10.13"
+  ],
+  "constrains": [],
+  "license": "bzip2-1.0.6",
+  "timestamp": 1771350680000,
+  "size": 133427,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/bzip2-1.0.8-h500dc9f_9.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/bzip2-1.0.8-h500dc9f_9",
+  "files": [
+    "bin/bunzip2",
+    "bin/bzcat",
+    "bin/bzcmp",
+    "bin/bzdiff",
+    "bin/bzegrep",
+    "bin/bzfgrep",
+    "bin/bzgrep",
+    "bin/bzip2",
+    "bin/bzip2recover",
+    "bin/bzless",
+    "bin/bzmore",
+    "include/bzlib.h",
+    "lib/libbz2.1.0.8.dylib",
+    "lib/libbz2.a",
+    "lib/libbz2.dylib",
+    "share/man/man1/bzcmp.1",
+    "share/man/man1/bzdiff.1",
+    "share/man/man1/bzegrep.1",
+    "share/man/man1/bzfgrep.1",
+    "share/man/man1/bzgrep.1",
+    "share/man/man1/bzip2.1",
+    "share/man/man1/bzless.1",
+    "share/man/man1/bzmore.1"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "bin/bunzip2",
+        "path_type": "hardlink",
+        "sha256": "b1d99d02dfa44d5f351da5fe9f382ae8235fe67430485a2f7dd526a6c31aeb27",
+        "size_in_bytes": 119896,
+        "sha256_in_prefix": "b1d99d02dfa44d5f351da5fe9f382ae8235fe67430485a2f7dd526a6c31aeb27"
+      },
+      {
+        "_path": "bin/bzcat",
+        "path_type": "hardlink",
+        "sha256": "b1d99d02dfa44d5f351da5fe9f382ae8235fe67430485a2f7dd526a6c31aeb27",
+        "size_in_bytes": 119896,
+        "sha256_in_prefix": "b1d99d02dfa44d5f351da5fe9f382ae8235fe67430485a2f7dd526a6c31aeb27"
+      },
+      {
+        "_path": "bin/bzcmp",
+        "path_type": "softlink",
+        "sha256": "1c1f96193cdf14b85ea65f140a7557a07ece8783a53ec5ba6b5c30644a9d3012",
+        "size_in_bytes": 2140
+      },
+      {
+        "_path": "bin/bzdiff",
+        "path_type": "hardlink",
+        "sha256": "1c1f96193cdf14b85ea65f140a7557a07ece8783a53ec5ba6b5c30644a9d3012",
+        "size_in_bytes": 2140,
+        "sha256_in_prefix": "1c1f96193cdf14b85ea65f140a7557a07ece8783a53ec5ba6b5c30644a9d3012"
+      },
+      {
+        "_path": "bin/bzegrep",
+        "path_type": "softlink",
+        "sha256": "a8e368a31766c7862b8d0feeffe274c3bb43b969e3ccb4f9e77d13bfa447a5c9",
+        "size_in_bytes": 2054
+      },
+      {
+        "_path": "bin/bzfgrep",
+        "path_type": "softlink",
+        "sha256": "a8e368a31766c7862b8d0feeffe274c3bb43b969e3ccb4f9e77d13bfa447a5c9",
+        "size_in_bytes": 2054
+      },
+      {
+        "_path": "bin/bzgrep",
+        "path_type": "hardlink",
+        "sha256": "a8e368a31766c7862b8d0feeffe274c3bb43b969e3ccb4f9e77d13bfa447a5c9",
+        "size_in_bytes": 2054,
+        "sha256_in_prefix": "a8e368a31766c7862b8d0feeffe274c3bb43b969e3ccb4f9e77d13bfa447a5c9"
+      },
+      {
+        "_path": "bin/bzip2",
+        "path_type": "hardlink",
+        "sha256": "b1d99d02dfa44d5f351da5fe9f382ae8235fe67430485a2f7dd526a6c31aeb27",
+        "size_in_bytes": 119896,
+        "sha256_in_prefix": "b1d99d02dfa44d5f351da5fe9f382ae8235fe67430485a2f7dd526a6c31aeb27"
+      },
+      {
+        "_path": "bin/bzip2recover",
+        "path_type": "hardlink",
+        "sha256": "2f8710814f9de4b120ad89eef564e7bd1fb1b6f5331524731972c941c71eb4a5",
+        "size_in_bytes": 14616,
+        "sha256_in_prefix": "2f8710814f9de4b120ad89eef564e7bd1fb1b6f5331524731972c941c71eb4a5"
+      },
+      {
+        "_path": "bin/bzless",
+        "path_type": "softlink",
+        "sha256": "836536d4c7469788c730355d59f8ae8d16ba07cb0754174878d99ed90f04448d",
+        "size_in_bytes": 1259
+      },
+      {
+        "_path": "bin/bzmore",
+        "path_type": "hardlink",
+        "sha256": "836536d4c7469788c730355d59f8ae8d16ba07cb0754174878d99ed90f04448d",
+        "size_in_bytes": 1259,
+        "sha256_in_prefix": "836536d4c7469788c730355d59f8ae8d16ba07cb0754174878d99ed90f04448d"
+      },
+      {
+        "_path": "include/bzlib.h",
+        "path_type": "hardlink",
+        "sha256": "6ac62e811669598ee30c9e1c379b9e627f6ff17a5a3dc1e0b4fa8b8ea75e580d",
+        "size_in_bytes": 6240,
+        "sha256_in_prefix": "6ac62e811669598ee30c9e1c379b9e627f6ff17a5a3dc1e0b4fa8b8ea75e580d"
+      },
+      {
+        "_path": "lib/libbz2.1.0.8.dylib",
+        "path_type": "hardlink",
+        "sha256": "ad4f03e919b64d00c6cf0c5c3d81dc885d9cdb219241d27423c3048782441ecd",
+        "size_in_bytes": 89816,
+        "sha256_in_prefix": "ad4f03e919b64d00c6cf0c5c3d81dc885d9cdb219241d27423c3048782441ecd"
+      },
+      {
+        "_path": "lib/libbz2.a",
+        "path_type": "hardlink",
+        "sha256": "6e00838093e32ce9edfbc65fd1c666d9312e5a01733af03720e2609b87363d02",
+        "size_in_bytes": 251848,
+        "sha256_in_prefix": "6e00838093e32ce9edfbc65fd1c666d9312e5a01733af03720e2609b87363d02"
+      },
+      {
+        "_path": "lib/libbz2.dylib",
+        "path_type": "softlink",
+        "sha256": "ad4f03e919b64d00c6cf0c5c3d81dc885d9cdb219241d27423c3048782441ecd",
+        "size_in_bytes": 89816
+      },
+      {
+        "_path": "share/man/man1/bzcmp.1",
+        "path_type": "hardlink",
+        "sha256": "172cde42c47a6d50c244e39d993097dcd3882427d57303078643849cf10a81c4",
+        "size_in_bytes": 18,
+        "sha256_in_prefix": "172cde42c47a6d50c244e39d993097dcd3882427d57303078643849cf10a81c4"
+      },
+      {
+        "_path": "share/man/man1/bzdiff.1",
+        "path_type": "hardlink",
+        "sha256": "32d1a7cd115430398e58537532584ef2ab76343c9f094dcd1253d9c4c0f705bf",
+        "size_in_bytes": 897,
+        "sha256_in_prefix": "32d1a7cd115430398e58537532584ef2ab76343c9f094dcd1253d9c4c0f705bf"
+      },
+      {
+        "_path": "share/man/man1/bzegrep.1",
+        "path_type": "hardlink",
+        "sha256": "cf1c98d3fa055506c8af2f8bba4da9c17d367c6409c6ad83a2bc67ccb6630182",
+        "size_in_bytes": 18,
+        "sha256_in_prefix": "cf1c98d3fa055506c8af2f8bba4da9c17d367c6409c6ad83a2bc67ccb6630182"
+      },
+      {
+        "_path": "share/man/man1/bzfgrep.1",
+        "path_type": "hardlink",
+        "sha256": "cf1c98d3fa055506c8af2f8bba4da9c17d367c6409c6ad83a2bc67ccb6630182",
+        "size_in_bytes": 18,
+        "sha256_in_prefix": "cf1c98d3fa055506c8af2f8bba4da9c17d367c6409c6ad83a2bc67ccb6630182"
+      },
+      {
+        "_path": "share/man/man1/bzgrep.1",
+        "path_type": "hardlink",
+        "sha256": "924aa4a7c7c1467400181e4c0ee1b527db142b6399a717171f2351b72b5899df",
+        "size_in_bytes": 1297,
+        "sha256_in_prefix": "924aa4a7c7c1467400181e4c0ee1b527db142b6399a717171f2351b72b5899df"
+      },
+      {
+        "_path": "share/man/man1/bzip2.1",
+        "path_type": "hardlink",
+        "sha256": "27b984bb2e8bbee2651d11cda87449cfc4138d2e479b9eaa77b8f60fa5d0bf5d",
+        "size_in_bytes": 16266,
+        "sha256_in_prefix": "27b984bb2e8bbee2651d11cda87449cfc4138d2e479b9eaa77b8f60fa5d0bf5d"
+      },
+      {
+        "_path": "share/man/man1/bzless.1",
+        "path_type": "hardlink",
+        "sha256": "216898f9b8acf61eeb471ecf23e47c1452dfd648f7f38d7d3bf48627072dc52c",
+        "size_in_bytes": 18,
+        "sha256_in_prefix": "216898f9b8acf61eeb471ecf23e47c1452dfd648f7f38d7d3bf48627072dc52c"
+      },
+      {
+        "_path": "share/man/man1/bzmore.1",
+        "path_type": "hardlink",
+        "sha256": "ccfcf3f995e11adae3035e287252091bb72d165da21e0c385a4965d17c9051c7",
+        "size_in_bytes": 4310,
+        "sha256_in_prefix": "ccfcf3f995e11adae3035e287252091bb72d165da21e0c385a4965d17c9051c7"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/bzip2-1.0.8-h500dc9f_9",
+    "type": 1
+  }
+}

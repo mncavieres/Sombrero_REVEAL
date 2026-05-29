@@ -1,0 +1,51 @@
+{
+  "name": "liblapack",
+  "version": "3.9.0",
+  "build": "20_osx64_openblas",
+  "build_number": 20,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "liblapack-3.9.0-20_osx64_openblas.conda",
+  "md5": "704bfc2af1288ea973b6755281e6ad32",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/liblapack-3.9.0-20_osx64_openblas.conda",
+  "sha256": "d64e11b93dada339cd0dcc057b3f3f6a5114b8c9bdf90cf6c04cbfa75fb02104",
+  "depends": [
+    "libblas 3.9.0 20_osx64_openblas"
+  ],
+  "constrains": [
+    "blas * openblas",
+    "liblapacke 3.9.0 20_osx64_openblas",
+    "libcblas 3.9.0 20_osx64_openblas"
+  ],
+  "license": "BSD-3-Clause",
+  "timestamp": 1700568740000,
+  "size": 14658,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/liblapack-3.9.0-20_osx64_openblas.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/liblapack-3.9.0-20_osx64_openblas",
+  "files": [
+    "lib/liblapack.3.dylib",
+    "lib/liblapack.dylib"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "lib/liblapack.3.dylib",
+        "path_type": "softlink",
+        "sha256": "2ada7fd58757f3792991e2ac22dfba0160ecfc69afcd05fe5e89e2004db1e5f7",
+        "size_in_bytes": 69175584
+      },
+      {
+        "_path": "lib/liblapack.dylib",
+        "path_type": "softlink",
+        "sha256": "2ada7fd58757f3792991e2ac22dfba0160ecfc69afcd05fe5e89e2004db1e5f7",
+        "size_in_bytes": 69175584
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/liblapack-3.9.0-20_osx64_openblas",
+    "type": 1
+  }
+}

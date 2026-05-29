@@ -1,0 +1,113 @@
+{
+  "name": "ld64_osx-64",
+  "version": "609",
+  "build": "h6adca69_10",
+  "build_number": 10,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "ld64_osx-64-609-h6adca69_10.tar.bz2",
+  "md5": "9c93b9d5bf354c6ff71176fafbb36a16",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/ld64_osx-64-609-h6adca69_10.tar.bz2",
+  "sha256": "5a4f58ca05a55fda5e0062daa2215ce33fc42574efe022b15974f7370ce4f37d",
+  "depends": [
+    "libcxx",
+    "libllvm11 >=11.1.0,<11.2.0a0",
+    "sigtool",
+    "tapi >=1100.0.11,<1101.0a0"
+  ],
+  "constrains": [
+    "ld 609.*",
+    "cctools 973.0.1.*",
+    "cctools_osx-64 973.0.1.*",
+    "clang >=11.1.0,<12.0a0"
+  ],
+  "license": "APSL-2.0",
+  "timestamp": 1647516038000,
+  "size": 1525254,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/ld64_osx-64-609-h6adca69_10.tar.bz2",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/ld64_osx-64-609-h6adca69_10",
+  "files": [
+    "bin/x86_64-apple-darwin13.4.0-ObjectDump",
+    "bin/x86_64-apple-darwin13.4.0-dyldinfo",
+    "bin/x86_64-apple-darwin13.4.0-ld",
+    "bin/x86_64-apple-darwin13.4.0-machocheck",
+    "bin/x86_64-apple-darwin13.4.0-unwinddump",
+    "share/man/man1/x86_64-apple-darwin13.4.0-dyldinfo.1",
+    "share/man/man1/x86_64-apple-darwin13.4.0-ld.1",
+    "share/man/man1/x86_64-apple-darwin13.4.0-ld64.1",
+    "share/man/man1/x86_64-apple-darwin13.4.0-unwinddump.1"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "bin/x86_64-apple-darwin13.4.0-ObjectDump",
+        "path_type": "hardlink",
+        "sha256": "1ce659fc3d2459baf95bf5405b00ae853036a570ad619f6d99e90aa86680ce0c",
+        "size_in_bytes": 1195192,
+        "sha256_in_prefix": "1ce659fc3d2459baf95bf5405b00ae853036a570ad619f6d99e90aa86680ce0c"
+      },
+      {
+        "_path": "bin/x86_64-apple-darwin13.4.0-dyldinfo",
+        "path_type": "hardlink",
+        "sha256": "d43f201cec11b422ef7a1b6ab476efd087c5b20b968cba9a7d5b1b55590f5a52",
+        "size_in_bytes": 289440,
+        "sha256_in_prefix": "d43f201cec11b422ef7a1b6ab476efd087c5b20b968cba9a7d5b1b55590f5a52"
+      },
+      {
+        "_path": "bin/x86_64-apple-darwin13.4.0-ld",
+        "path_type": "hardlink",
+        "sha256": "179d57dfefce8cc6a37f28e7755a9957ecdeb56ec56cffcf1c9c3f099bef9267",
+        "size_in_bytes": 4482312,
+        "sha256_in_prefix": "179d57dfefce8cc6a37f28e7755a9957ecdeb56ec56cffcf1c9c3f099bef9267"
+      },
+      {
+        "_path": "bin/x86_64-apple-darwin13.4.0-machocheck",
+        "path_type": "hardlink",
+        "sha256": "c1f5fa918f9b7fa8ffd7c7589811497d11d76da2926ea159c50032e88ad9e943",
+        "size_in_bytes": 189568,
+        "sha256_in_prefix": "c1f5fa918f9b7fa8ffd7c7589811497d11d76da2926ea159c50032e88ad9e943"
+      },
+      {
+        "_path": "bin/x86_64-apple-darwin13.4.0-unwinddump",
+        "path_type": "hardlink",
+        "sha256": "bb2192db03c38e68ef0c539eb36b3a33a1fd8650f835470f2160e51e9889744c",
+        "size_in_bytes": 64656,
+        "sha256_in_prefix": "bb2192db03c38e68ef0c539eb36b3a33a1fd8650f835470f2160e51e9889744c"
+      },
+      {
+        "_path": "share/man/man1/x86_64-apple-darwin13.4.0-dyldinfo.1",
+        "path_type": "hardlink",
+        "sha256": "c9ca8e73dd460f2564597096a083fe1dbe62a4356b7881e22b9e8233519d61af",
+        "size_in_bytes": 1773,
+        "sha256_in_prefix": "c9ca8e73dd460f2564597096a083fe1dbe62a4356b7881e22b9e8233519d61af"
+      },
+      {
+        "_path": "share/man/man1/x86_64-apple-darwin13.4.0-ld.1",
+        "path_type": "hardlink",
+        "sha256": "552691df5a2992a275df87bc10a95db198e72538707cdd5d8016bd29c46167a6",
+        "size_in_bytes": 56932,
+        "sha256_in_prefix": "552691df5a2992a275df87bc10a95db198e72538707cdd5d8016bd29c46167a6"
+      },
+      {
+        "_path": "share/man/man1/x86_64-apple-darwin13.4.0-ld64.1",
+        "path_type": "hardlink",
+        "sha256": "5087a7a3829b727a623fde146c812041bb9cd08fe41b28425bbbcde45c05e9d9",
+        "size_in_bytes": 14,
+        "sha256_in_prefix": "5087a7a3829b727a623fde146c812041bb9cd08fe41b28425bbbcde45c05e9d9"
+      },
+      {
+        "_path": "share/man/man1/x86_64-apple-darwin13.4.0-unwinddump.1",
+        "path_type": "hardlink",
+        "sha256": "758829d66a892f6af26ab9cdf14d754df4bdad7dcc40ea51021b9fde9bc90147",
+        "size_in_bytes": 770,
+        "sha256_in_prefix": "758829d66a892f6af26ab9cdf14d754df4bdad7dcc40ea51021b9fde9bc90147"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/ld64_osx-64-609-h6adca69_10",
+    "type": 1
+  }
+}

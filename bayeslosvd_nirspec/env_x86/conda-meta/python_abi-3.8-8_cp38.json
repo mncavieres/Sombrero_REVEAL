@@ -1,0 +1,33 @@
+{
+  "name": "python_abi",
+  "version": "3.8",
+  "build": "8_cp38",
+  "build_number": 8,
+  "channel": "https://conda.anaconda.org/conda-forge/noarch",
+  "subdir": "noarch",
+  "fn": "python_abi-3.8-8_cp38.conda",
+  "md5": "4f7b6e3de4f15cc44e0f93b39f07205d",
+  "url": "https://conda.anaconda.org/conda-forge/noarch/python_abi-3.8-8_cp38.conda",
+  "sha256": "83c22066a672ce0b16e693c84aa6d5efb68e02eff037a55e047d7095d0fdb5ca",
+  "depends": [],
+  "constrains": [
+    "python 3.8.* *_cpython"
+  ],
+  "noarch": "generic",
+  "license": "BSD-3-Clause",
+  "package_type": "noarch_generic",
+  "timestamp": 1752805923000,
+  "size": 6960,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/python_abi-3.8-8_cp38.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/python_abi-3.8-8_cp38",
+  "files": [],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": []
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/python_abi-3.8-8_cp38",
+    "type": 1
+  }
+}

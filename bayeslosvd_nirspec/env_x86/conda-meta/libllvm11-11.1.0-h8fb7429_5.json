@@ -1,0 +1,58 @@
+{
+  "name": "libllvm11",
+  "version": "11.1.0",
+  "build": "h8fb7429_5",
+  "build_number": 5,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "libllvm11-11.1.0-h8fb7429_5.tar.bz2",
+  "md5": "7c9c5bf4c2e24b54e56ace2a20e79dca",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/libllvm11-11.1.0-h8fb7429_5.tar.bz2",
+  "sha256": "1513e2606e5bf9a6ae42b300346232af8a021be9bb55027a1939d43b080c1382",
+  "depends": [
+    "libcxx >=14.a0",
+    "libzlib >=1.2.13,<2.0.0a0"
+  ],
+  "constrains": [],
+  "license": "Apache-2.0 WITH LLVM-exception",
+  "timestamp": 1666875671000,
+  "size": 23312806,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/libllvm11-11.1.0-h8fb7429_5.tar.bz2",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/libllvm11-11.1.0-h8fb7429_5",
+  "files": [
+    "lib/libLLVM-11.dylib",
+    "lib/libLTO.11.dylib",
+    "lib/libRemarks.11.dylib"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "lib/libLLVM-11.dylib",
+        "path_type": "hardlink",
+        "sha256": "292e9c7ae674f42952510ef436c3a63249e1186ab43ac959e6bad265c0e798a7",
+        "size_in_bytes": 83334192,
+        "sha256_in_prefix": "292e9c7ae674f42952510ef436c3a63249e1186ab43ac959e6bad265c0e798a7"
+      },
+      {
+        "_path": "lib/libLTO.11.dylib",
+        "path_type": "hardlink",
+        "sha256": "a6d70882f74bc19ecd20559d0b48df780c7281b39b20654ddd0d654f9c4de19f",
+        "size_in_bytes": 72312,
+        "sha256_in_prefix": "a6d70882f74bc19ecd20559d0b48df780c7281b39b20654ddd0d654f9c4de19f"
+      },
+      {
+        "_path": "lib/libRemarks.11.dylib",
+        "path_type": "hardlink",
+        "sha256": "8fc13553bbb0d010b42e60c6618660a92374db3e0f56105f0183bf0e334a256d",
+        "size_in_bytes": 10864,
+        "sha256_in_prefix": "8fc13553bbb0d010b42e60c6618660a92374db3e0f56105f0183bf0e334a256d"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/libllvm11-11.1.0-h8fb7429_5",
+    "type": 1
+  }
+}

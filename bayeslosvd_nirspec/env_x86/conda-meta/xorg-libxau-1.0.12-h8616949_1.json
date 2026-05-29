@@ -1,0 +1,66 @@
+{
+  "name": "xorg-libxau",
+  "version": "1.0.12",
+  "build": "h8616949_1",
+  "build_number": 1,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "xorg-libxau-1.0.12-h8616949_1.conda",
+  "md5": "47f1b8b4a76ebd0cd22bd7153e54a4dc",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/xorg-libxau-1.0.12-h8616949_1.conda",
+  "sha256": "928f28bd278c7da674b57d71b2e7f4ac4e7c7ce56b0bf0f60d6a074366a2e76d",
+  "depends": [
+    "__osx >=10.13"
+  ],
+  "constrains": [],
+  "license": "MIT",
+  "timestamp": 1762977180000,
+  "size": 13810,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/xorg-libxau-1.0.12-h8616949_1.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/xorg-libxau-1.0.12-h8616949_1",
+  "files": [
+    "include/X11/Xauth.h",
+    "lib/libXau.6.dylib",
+    "lib/libXau.dylib",
+    "lib/pkgconfig/xau.pc"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "include/X11/Xauth.h",
+        "path_type": "hardlink",
+        "sha256": "d0bc0612c0d2eb38bf7519190ebb60ea0d538c86589a6fbc06e0d761ec22f9c4",
+        "size_in_bytes": 4973,
+        "sha256_in_prefix": "d0bc0612c0d2eb38bf7519190ebb60ea0d538c86589a6fbc06e0d761ec22f9c4"
+      },
+      {
+        "_path": "lib/libXau.6.dylib",
+        "path_type": "hardlink",
+        "sha256": "864140f524ad34ab955474b9c840ed9ab7c903a296d812598d093ac0f65deac3",
+        "size_in_bytes": 14320,
+        "sha256_in_prefix": "864140f524ad34ab955474b9c840ed9ab7c903a296d812598d093ac0f65deac3"
+      },
+      {
+        "_path": "lib/libXau.dylib",
+        "path_type": "softlink",
+        "sha256": "864140f524ad34ab955474b9c840ed9ab7c903a296d812598d093ac0f65deac3",
+        "size_in_bytes": 14320
+      },
+      {
+        "_path": "lib/pkgconfig/xau.pc",
+        "prefix_placeholder": "/Users/runner/miniforge3/conda-bld/xorg-libxau_1762976608251/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho",
+        "file_mode": "text",
+        "path_type": "hardlink",
+        "sha256": "2b80a552615b9713aae08c9d65e6b7c3a8883e0eb89a1dc2e2005ee54c71772c",
+        "size_in_bytes": 485,
+        "sha256_in_prefix": "e28722951164f8b06cf66cbd9c7bf0ba188f53772415d9e04852fc952cefed8d"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/xorg-libxau-1.0.12-h8616949_1",
+    "type": 1
+  }
+}

@@ -36,8 +36,19 @@
 
 # %%
 from pathlib import Path
-from importlib import resources
+from importlib import metadata, resources
 from urllib import request
+from datetime import datetime, timezone
+import json
+import os
+import platform
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# pPXF bin fits are run concurrently; keep BLAS/OpenMP from oversubscribing CPU.
+for _thread_var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    os.environ.setdefault(_thread_var, "1")
 
 from astropy.io import fits
 import numpy as np
@@ -58,15 +69,30 @@ C = 299792.458  # km/s
 
 LAM_RANGE = [4750.0, 7409.0]   # rest-frame Angstrom
 REDSHIFT = 0.003633
-TARGET_SN = 100
+TARGET_SN = int(os.environ.get("MUSE_PPXF_TARGET_SN", "100"))
 SN_MIN = 0
 
-SPS_NAME = "emiles"            # "fsps", "galaxev", "emiles", "xsl"
+SPS_NAME = os.environ.get("MUSE_PPXF_SPS_NAME", "xsl").strip().lower()  # "fsps", "galaxev", "emiles", "xsl"
 SPS_NORM_RANGE = [5070, 5950]
 
-KIN_DEGREE = 8                 # additive polynomial degree for kinematics
-KIN_MDEGREE = 0                # multiplicative polynomial degree for kinematics
-POP_MDEGREE = 8                # multiplicative polynomial degree for populations
+KIN_DEGREE = int(os.environ.get("MUSE_PPXF_KIN_DEGREE", "8"))      # additive polynomial degree for kinematics
+KIN_MDEGREE = int(os.environ.get("MUSE_PPXF_KIN_MDEGREE", "0"))    # multiplicative polynomial degree for kinematics
+KIN_MOMENTS = 4                # fit [V, sigma, h3, h4]
+KIN_BIAS = 0.0                 # keep h3/h4 unbiased for the cross-instrument comparison
+POP_MDEGREE = int(os.environ.get("MUSE_PPXF_POP_MDEGREE", "8"))    # multiplicative polynomial degree for populations
+CHECK_PLOT_RADIUS_ARCSEC = 0.5 # central radius for peak-sigma check plot
+
+# Rest-frame optical gas-line windows excluded from stellar-kinematics fits.
+# The central MUSE spectra have strong emission residuals around H-alpha/[N II].
+KIN_MASK_WINDOWS = [
+    (4856.0, 4868.0),  # H beta
+    (4953.0, 4965.0),  # [O III] 4959
+    (4998.0, 5018.0),  # [O III] 5007
+    (5190.0, 5205.0),  # [N I]
+    (6295.0, 6308.0),  # [O I] 6300
+    (6540.0, 6590.0),  # H alpha + [N II]
+    (6710.0, 6740.0),  # [S II]
+]
 
 REGUL_START = 100.0
 REGUL_MAX = 5.0e4
@@ -74,6 +100,7 @@ REGUL_BRACKET_STEPS = 10
 REGUL_BISECT_STEPS = 10
 
 N_PLOTS_BINS = 3
+N_WORKERS = int(os.environ.get("MUSE_PPXF_N_WORKERS", "6"))
 
 RUN_POP_MC = False             # optional; expensive
 POP_MC_N = 20
@@ -87,8 +114,10 @@ OBJFILE = Path(
     "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Data/MUSE/c30_cubes/c30_DATACUBE_normppxf_skycont_Part1_0000.fits"
 )
 PLOTS_PATH = Path(
-    "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/ppxf"
-    "ppxf_c30_emiles_refactored_finer"
+    os.environ.get(
+        "MUSE_PPXF_PLOTS_PATH",
+        "/Users/mncavieres/Documents/2026-1/Sombrero_REVEAL/Plots/ppxfppxf_c30_xsl_consistent",
+    )
 )
 
 # %% [markdown]
@@ -163,6 +192,218 @@ def correct_ppxf_errors(pp):
     if getattr(pp, "error", None) is None:
         return None
     return np.asarray(pp.error, dtype=float) * np.sqrt(pp.chi2)
+
+
+def apply_wavelength_mask_windows(mask, lam, windows):
+    """
+    Remove rest-frame wavelength windows from an existing pPXF mask.
+    """
+    out = np.asarray(mask, dtype=bool).copy()
+    lam = np.asarray(lam, dtype=float)
+    for lo, hi in windows:
+        out &= ~((lam >= lo) & (lam <= hi))
+    return out
+
+
+def package_version(name):
+    """
+    Return an installed package version, or None if the package is unavailable.
+    """
+    try:
+        return metadata.version(name)
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def git_command(args):
+    """
+    Best-effort git metadata for provenance; failures should not stop a run.
+    """
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=Path(__file__).resolve().parents[2],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def json_default(value):
+    """
+    Convert numpy/path objects to JSON-friendly builtins.
+    """
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.generic):
+        return value.item()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def relevant_environment():
+    keys = [
+        "MPLCONFIGDIR",
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ]
+    env = {key: os.environ.get(key) for key in keys if os.environ.get(key) is not None}
+    env.update({key: os.environ[key] for key in sorted(os.environ) if key.startswith("MUSE_PPXF_")})
+    return env
+
+
+def write_run_config_json(
+    path,
+    stage,
+    s=None,
+    sps_filename=None,
+    sps_obj=None,
+    reg_dim_value=None,
+    lam_gal_value=None,
+    lam_range_temp_value=None,
+    mask_value=None,
+    nbins_value=None,
+    outputs=None,
+):
+    """
+    Write a complete reproducibility record for this MUSE pPXF run.
+    """
+    run_config = {
+        "stage": stage,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "script": str(Path(__file__).resolve()),
+        "cwd": str(Path.cwd()),
+        "command_line": [sys.executable, *sys.argv],
+        "system": {
+            "platform": platform.platform(),
+            "python_version": sys.version,
+            "python_executable": sys.executable,
+        },
+        "git": {
+            "commit": git_command(["rev-parse", "HEAD"]),
+            "branch": git_command(["rev-parse", "--abbrev-ref", "HEAD"]),
+            "status_short": git_command(["status", "--short"]),
+        },
+        "environment": relevant_environment(),
+        "inputs": {
+            "object_file": OBJFILE,
+            "lam_range_rest_angstrom": LAM_RANGE,
+            "redshift": REDSHIFT,
+        },
+        "binning": {
+            "target_sn": TARGET_SN,
+            "sn_min": SN_MIN,
+            "nbins": nbins_value,
+            "powerbin_capacity": "sum(signal) / sqrt(sum(noise^2))",
+        },
+        "sps": {
+            "name": SPS_NAME,
+            "norm_range_angstrom": SPS_NORM_RANGE,
+            "template_file": sps_filename,
+            "fwhm_gal_angstrom": getattr(s, "fwhm_gal", None) if s is not None else None,
+            "template_shape_after_flattening": getattr(getattr(sps_obj, "templates", None), "shape", None),
+            "regularization_dimensions": list(reg_dim_value) if reg_dim_value is not None else None,
+            "lam_temp_minmax_angstrom": (
+                [float(sps_obj.lam_temp[0]), float(sps_obj.lam_temp[-1])]
+                if sps_obj is not None and hasattr(sps_obj, "lam_temp")
+                else None
+            ),
+        },
+        "kinematics": {
+            "degree": KIN_DEGREE,
+            "mdegree": KIN_MDEGREE,
+            "moments": KIN_MOMENTS,
+            "bias": KIN_BIAS,
+            "start": [0.0, 200.0],
+            "fit_sequence": [
+                "initial moments=2 fit",
+                "iterative outlier clipping",
+                "moments=2 refit for noise scaling",
+                "moments=4 fit initialized from moments=2",
+                "moments=4 refit after chi2 noise rescaling",
+            ],
+        },
+        "population": {
+            "mdegree": POP_MDEGREE,
+            "regularization_start": REGUL_START,
+            "regularization_max": REGUL_MAX,
+            "regularization_bracket_steps": REGUL_BRACKET_STEPS,
+            "regularization_bisect_steps": REGUL_BISECT_STEPS,
+            "monte_carlo_enabled": RUN_POP_MC,
+            "monte_carlo_n": POP_MC_N,
+            "rng_seed": RNG_SEED,
+        },
+        "masking": {
+            "kinematic_mask_windows_rest_angstrom": KIN_MASK_WINDOWS,
+            "template_lam_range_angstrom": (
+                [float(lam_range_temp_value[0]), float(lam_range_temp_value[1])]
+                if lam_range_temp_value is not None
+                else None
+            ),
+            "n_goodpixels_after_masks": int(np.count_nonzero(mask_value)) if mask_value is not None else None,
+            "n_pixels_total": int(mask_value.size) if mask_value is not None else None,
+        },
+        "parallelism": {
+            "worker_type": "threads",
+            "requested_workers": N_WORKERS,
+            "effective_workers": min(max(1, int(N_WORKERS)), int(nbins_value)) if nbins_value else None,
+            "thread_env_caps": {
+                key: os.environ.get(key)
+                for key in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS")
+            },
+        },
+        "diagnostics": {
+            "n_plot_bins": N_PLOTS_BINS,
+            "check_plot_radius_arcsec": CHECK_PLOT_RADIUS_ARCSEC,
+            "fit_gas_example": FIT_GAS_EXAMPLE,
+            "gas_spaxel_index": GAS_SPIXEL_INDEX,
+            "n_gas_components": NGAS_COMP,
+            "gas_fit_degree": 8,
+            "gas_fit_mdegree": -1,
+        },
+        "cube": (
+            {
+                "velscale_kms": s.velscale,
+                "pixsize_arcsec": s.pixsize,
+                "n_spaxels": int(s.spectra.shape[1]),
+                "n_log_pixels": int(s.spectra.shape[0]),
+                "lam_gal_minmax_angstrom": (
+                    [float(lam_gal_value[0]), float(lam_gal_value[-1])]
+                    if lam_gal_value is not None
+                    else None
+                ),
+            }
+            if s is not None
+            else None
+        ),
+        "outputs": outputs or {
+            "output_directory": PLOTS_PATH,
+            "run_config": path,
+        },
+        "packages": {
+            "numpy": np.__version__,
+            "matplotlib": package_version("matplotlib"),
+            "astropy": package_version("astropy"),
+            "ppxf": package_version("ppxf"),
+            "powerbin": package_version("powerbin"),
+            "plotbin": package_version("plotbin"),
+            "scipy": package_version("scipy"),
+            "tqdm": package_version("tqdm"),
+        },
+    }
+    path = Path(path)
+    path.write_text(json.dumps(run_config, indent=2, default=json_default) + "\n")
+    print(f"Saved run configuration JSON ({stage}) to: {path}")
+    return path
 
 
 # %% [markdown]
@@ -360,6 +601,8 @@ def fit_stellar_kinematics(
     lam_temp,
     degree=KIN_DEGREE,
     mdegree=KIN_MDEGREE,
+    moments=KIN_MOMENTS,
+    bias=KIN_BIAS,
     plot=False,
     quiet=False,
 ):
@@ -391,9 +634,20 @@ def fit_stellar_kinematics(
     noise = np.full_like(galaxy, robust_sigma(resid, zero=1))
     noise = safe_positive(noise)
 
-    pp = ppxf(
+    pp2 = ppxf(
         templates, galaxy, noise, velscale, pp.sol,
         moments=2, degree=degree, mdegree=mdegree,
+        lam=lam, lam_temp=lam_temp, mask=mask, quiet=quiet
+    )
+
+    noise *= np.sqrt(pp2.chi2)
+    start_final = np.asarray(pp2.sol, dtype=float).tolist()
+    if moments > 2:
+        start_final = start_final[:2] + [0.0] * (moments - 2)
+
+    pp = ppxf(
+        templates, galaxy, noise, velscale, start_final,
+        moments=moments, bias=bias, degree=degree, mdegree=mdegree,
         lam=lam, lam_temp=lam_temp, mask=mask, quiet=quiet
     )
 
@@ -401,7 +655,7 @@ def fit_stellar_kinematics(
 
     pp = ppxf(
         templates, galaxy, noise, velscale, pp.sol,
-        moments=2, degree=degree, mdegree=mdegree,
+        moments=moments, bias=bias, degree=degree, mdegree=mdegree,
         lam=lam, lam_temp=lam_temp, mask=mask, quiet=quiet
     )
 
@@ -443,7 +697,7 @@ def _population_fit_inner(
     """
     return ppxf(
         templates, galaxy, noise, velscale, kin_sol,
-        moments=-2,                  # keep [V, sigma] fixed
+        moments=-len(np.atleast_1d(kin_sol)),  # keep fitted LOSVD moments fixed
         degree=-1, mdegree=mdegree,  # no additive poly for populations
         lam=lam, lam_temp=lam_temp, mask=mask,
         regul=regul, reg_dim=reg_dim,
@@ -642,8 +896,12 @@ def save_ppxf_products(
     bin_num,
     velbin,
     sigbin,
+    h3bin,
+    h4bin,
     velerr_bin,
     sigerr_bin,
+    h3err_bin,
+    h4err_bin,
     lg_age_bin,
     metalbin,
     lg_age_err_bin,
@@ -672,8 +930,12 @@ def save_ppxf_products(
     bin_map = bin_num.reshape(ny, nx)
     vel_map = velbin[bin_num].reshape(ny, nx)
     sig_map = sigbin[bin_num].reshape(ny, nx)
+    h3_map = h3bin[bin_num].reshape(ny, nx)
+    h4_map = h4bin[bin_num].reshape(ny, nx)
     velerr_map = velerr_bin[bin_num].reshape(ny, nx)
     sigerr_map = sigerr_bin[bin_num].reshape(ny, nx)
+    h3err_map = h3err_bin[bin_num].reshape(ny, nx)
+    h4err_map = h4err_bin[bin_num].reshape(ny, nx)
     lg_age_map = lg_age_bin[bin_num].reshape(ny, nx)
     metal_map = metalbin[bin_num].reshape(ny, nx)
     signal_map = s.signal.reshape(ny, nx)
@@ -692,6 +954,14 @@ def save_ppxf_products(
     hdr["VELSCAL"] = (float(s.velscale), "km/s per pixel")
     hdr["REDSHFT"] = float(redshift)
     hdr["TARSN"] = float(target_sn)
+    hdr["KINDEG"] = int(KIN_DEGREE)
+    hdr["KINMDEG"] = int(KIN_MDEGREE)
+    hdr["MOMENTS"] = int(KIN_MOMENTS)
+    hdr["BIAS"] = float(KIN_BIAS)
+    hdr["POPMDEG"] = int(POP_MDEGREE)
+    hdr["NWORKER"] = (int(N_WORKERS), "requested pPXF worker threads")
+    hdr["CHKSRAD"] = (float(CHECK_PLOT_RADIUS_ARCSEC), "central checkplot radius [arcsec]")
+    hdr["NGMASK"] = (len(KIN_MASK_WINDOWS), "number of stellar-kinematics mask windows")
     hdr["LAMMIN"] = (float(np.min(lam_gal)), "Angstrom")
     hdr["LAMMAX"] = (float(np.max(lam_gal)), "Angstrom")
     hdr["PIXSIZE"] = (float(s.pixsize), "arcsec")
@@ -703,8 +973,12 @@ def save_ppxf_products(
         fits.Column(name="Y_ARCSEC", format="D", array=ybin),
         fits.Column(name="V_KMS", format="D", array=velbin),
         fits.Column(name="SIGMA_KMS", format="D", array=sigbin),
+        fits.Column(name="H3", format="D", array=h3bin),
+        fits.Column(name="H4", format="D", array=h4bin),
         fits.Column(name="VERR_KMS", format="D", array=velerr_bin),
         fits.Column(name="SIGERR_KMS", format="D", array=sigerr_bin),
+        fits.Column(name="H3_ERR", format="D", array=h3err_bin),
+        fits.Column(name="H4_ERR", format="D", array=h4err_bin),
         fits.Column(name="LOGAGE_YR", format="D", array=lg_age_bin),
         fits.Column(name="MEAN_METAL", format="D", array=metalbin),
         fits.Column(name="LOGAGE_ERR", format="D", array=lg_age_err_bin),
@@ -726,8 +1000,12 @@ def save_ppxf_products(
         fits.Column(name="BIN_ID", format="J", array=bin_num.astype(np.int32)),
         fits.Column(name="V_KMS", format="D", array=velbin[bin_num].astype(float)),
         fits.Column(name="SIGMA_KMS", format="D", array=sigbin[bin_num].astype(float)),
+        fits.Column(name="H3", format="D", array=h3bin[bin_num].astype(float)),
+        fits.Column(name="H4", format="D", array=h4bin[bin_num].astype(float)),
         fits.Column(name="VERR_KMS", format="D", array=velerr_bin[bin_num].astype(float)),
         fits.Column(name="SIGERR_KMS", format="D", array=sigerr_bin[bin_num].astype(float)),
+        fits.Column(name="H3_ERR", format="D", array=h3err_bin[bin_num].astype(float)),
+        fits.Column(name="H4_ERR", format="D", array=h4err_bin[bin_num].astype(float)),
         fits.Column(name="LOGAGE_YR", format="D", array=lg_age_bin[bin_num].astype(float)),
         fits.Column(name="MEAN_METAL", format="D", array=metalbin[bin_num].astype(float)),
     ]
@@ -740,8 +1018,12 @@ def save_ppxf_products(
         fits.ImageHDU(data=bin_map.astype(np.int32), name="BIN_MAP"),
         fits.ImageHDU(data=vel_map.astype(np.float32), name="VEL_MAP"),
         fits.ImageHDU(data=sig_map.astype(np.float32), name="SIGMA_MAP"),
+        fits.ImageHDU(data=h3_map.astype(np.float32), name="H3_MAP"),
+        fits.ImageHDU(data=h4_map.astype(np.float32), name="H4_MAP"),
         fits.ImageHDU(data=velerr_map.astype(np.float32), name="VELERR_MAP"),
         fits.ImageHDU(data=sigerr_map.astype(np.float32), name="SIGERR_MAP"),
+        fits.ImageHDU(data=h3err_map.astype(np.float32), name="H3ERR_MAP"),
+        fits.ImageHDU(data=h4err_map.astype(np.float32), name="H4ERR_MAP"),
         fits.ImageHDU(data=lg_age_map.astype(np.float32), name="LOGAGE_MAP"),
         fits.ImageHDU(data=metal_map.astype(np.float32), name="METAL_MAP"),
         fits.ImageHDU(data=signal_map.astype(np.float32), name="SIGNAL_MAP"),
@@ -767,8 +1049,12 @@ def save_ppxf_products(
         "ybin": ybin,
         "velbin": velbin,
         "sigbin": sigbin,
+        "h3bin": h3bin,
+        "h4bin": h4bin,
         "velerr_bin": velerr_bin,
         "sigerr_bin": sigerr_bin,
+        "h3err_bin": h3err_bin,
+        "h4err_bin": h4err_bin,
         "lg_age_bin": lg_age_bin,
         "metalbin": metalbin,
         "lg_age_err_bin": lg_age_err_bin,
@@ -781,8 +1067,12 @@ def save_ppxf_products(
         "bin_map": bin_map,
         "vel_map": vel_map,
         "sig_map": sig_map,
+        "h3_map": h3_map,
+        "h4_map": h4_map,
         "velerr_map": velerr_map,
         "sigerr_map": sigerr_map,
+        "h3err_map": h3err_map,
+        "h4err_map": h4err_map,
         "lg_age_map": lg_age_map,
         "metal_map": metal_map,
         "signal_map": signal_map,
@@ -1026,11 +1316,344 @@ def fit_example_gas_spaxel(
     }
 
 
+# %%
+def select_target_spaxels_for_checkplots(s, bin_num, sigbin, central_radius_arcsec):
+    """
+    Select the brightest spaxel and the highest-sigma spaxel near the center.
+
+    The MUSE spectra are Power-binned, so the fit shown for a selected spaxel is
+    the fit of its parent bin.
+    """
+    targets = {}
+    if s.signal.size:
+        targets["brightest_spaxel"] = int(np.nanargmax(s.signal))
+
+    radius = np.hypot(s.x, s.y)
+    sigma_spax = sigbin[bin_num]
+    w = np.isfinite(radius) & (radius <= central_radius_arcsec) & np.isfinite(sigma_spax)
+    if np.any(w):
+        idx = np.flatnonzero(w)
+        targets[f"highest_sigma_within_{central_radius_arcsec:.2f}arcsec"] = int(
+            idx[np.nanargmax(sigma_spax[idx])]
+        )
+    return targets
+
+
+def _image_extent_from_cube(s):
+    return (
+        float(np.nanmin(s.x) - 0.5 * s.pixsize),
+        float(np.nanmax(s.x) + 0.5 * s.pixsize),
+        float(np.nanmin(s.y) - 0.5 * s.pixsize),
+        float(np.nanmax(s.y) + 0.5 * s.pixsize),
+    )
+
+
+def plot_muse_target_fit_with_finding_maps(
+    outpath,
+    s,
+    bin_num,
+    sigbin,
+    h3bin,
+    h4bin,
+    binned_spectra,
+    binned_bestfit,
+    lam_gal,
+    target_j,
+    label,
+    sn_bin,
+):
+    ny = int(s.row.max())
+    nx = int(s.col.max())
+    signal_map = s.signal.reshape(ny, nx)
+    sigma_map = sigbin[bin_num].reshape(ny, nx)
+    extent = _image_extent_from_cube(s)
+
+    target_bin = int(bin_num[target_j])
+    target_x = float(s.x[target_j])
+    target_y = float(s.y[target_j])
+    target_row = int(s.row[target_j])
+    target_col = int(s.col[target_j])
+
+    galaxy = binned_spectra[:, target_bin]
+    bestfit = binned_bestfit[:, target_bin]
+    resid = galaxy - bestfit
+    resid_scale = robust_sigma(resid[np.isfinite(resid)], zero=1)
+    if not np.isfinite(resid_scale) or resid_scale <= 0:
+        resid_scale = 1.0
+
+    fig = plt.figure(figsize=(17, 6))
+    gs = fig.add_gridspec(2, 3, height_ratios=[3.0, 1.0], width_ratios=[1.0, 1.0, 1.45])
+
+    ax_signal = fig.add_subplot(gs[:, 0])
+    im = ax_signal.imshow(signal_map, origin="lower", extent=extent, cmap="gray_r", aspect="equal")
+    ax_signal.scatter([target_x], [target_y], marker="*", s=220, facecolor="none", edgecolor="tab:red", linewidth=1.6)
+    ax_signal.set_title("Finding map: signal")
+    ax_signal.set_xlabel("X [arcsec]")
+    ax_signal.set_ylabel("Y [arcsec]")
+    fig.colorbar(im, ax=ax_signal, fraction=0.046, pad=0.02)
+
+    ax_sigma = fig.add_subplot(gs[:, 1])
+    im = ax_sigma.imshow(sigma_map, origin="lower", extent=extent, cmap="inferno", aspect="equal")
+    ax_sigma.scatter([target_x], [target_y], marker="*", s=220, facecolor="none", edgecolor="cyan", linewidth=1.6)
+    ax_sigma.set_title("Finding map: sigma")
+    ax_sigma.set_xlabel("X [arcsec]")
+    ax_sigma.set_ylabel("Y [arcsec]")
+    fig.colorbar(im, ax=ax_sigma, fraction=0.046, pad=0.02, label="km/s")
+
+    ax_fit = fig.add_subplot(gs[0, 2])
+    ax_resid = fig.add_subplot(gs[1, 2], sharex=ax_fit)
+    ax_fit.plot(lam_gal, galaxy, color="0.25", lw=0.8, label="Binned spectrum")
+    ax_fit.plot(lam_gal, bestfit, color="tab:blue", lw=1.0, label="pPXF/XSL best fit")
+    ax_fit.set_title(
+        f"{label} | row={target_row}, col={target_col}, bin={target_bin}, "
+        f"sigma={sigbin[target_bin]:.1f} km/s, "
+        f"h3={h3bin[target_bin]:+.3f}, h4={h4bin[target_bin]:+.3f}, "
+        f"S/N={sn_bin[target_bin]:.1f}"
+    )
+    ax_fit.set_ylabel("Flux")
+    ax_fit.legend(loc="best", frameon=False)
+
+    ax_resid.plot(lam_gal, resid / resid_scale, color="0.25", lw=0.7)
+    ax_resid.axhline(0, color="k", lw=0.7)
+    ax_resid.axhline(3, color="0.5", ls="--", lw=0.6)
+    ax_resid.axhline(-3, color="0.5", ls="--", lw=0.6)
+    ax_resid.set_xlabel("Rest wavelength [Angstrom]")
+    ax_resid.set_ylabel("Res./MAD")
+
+    fig.tight_layout()
+    fig.savefig(outpath, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def write_targeted_muse_checkplots(
+    plots_path,
+    s,
+    bin_num,
+    sigbin,
+    h3bin,
+    h4bin,
+    binned_spectra,
+    binned_bestfit,
+    lam_gal,
+    sn_bin,
+    central_radius_arcsec=CHECK_PLOT_RADIUS_ARCSEC,
+):
+    targets = select_target_spaxels_for_checkplots(s, bin_num, sigbin, central_radius_arcsec)
+    paths = {}
+    summary_lines = [
+        "MUSE XSL targeted kinematic checkplots",
+        f"Central peak-sigma radius: {central_radius_arcsec:.2f} arcsec",
+    ]
+    for label, j in targets.items():
+        outpath = plots_path / f"xsl_check_{label.replace('.', 'p')}.png"
+        plot_muse_target_fit_with_finding_maps(
+            outpath=outpath,
+            s=s,
+            bin_num=bin_num,
+            sigbin=sigbin,
+            h3bin=h3bin,
+            h4bin=h4bin,
+            binned_spectra=binned_spectra,
+            binned_bestfit=binned_bestfit,
+            lam_gal=lam_gal,
+            target_j=j,
+            label=label.replace("_", " "),
+            sn_bin=sn_bin,
+        )
+        paths[label] = outpath
+        k = int(bin_num[j])
+        summary_lines.append(
+            f"{label}: spaxel={j}, bin={k}, x={s.x[j]:.3f}, y={s.y[j]:.3f}, "
+            f"sigma={sigbin[k]:.2f} km/s, h3={h3bin[k]:+.4f}, h4={h4bin[k]:+.4f}, "
+            f"S/N={sn_bin[k]:.2f}, plot={outpath}"
+        )
+
+    summary_path = plots_path / "xsl_targeted_checkplots_summary.txt"
+    summary_path.write_text("\n".join(summary_lines) + "\n")
+    print(f"Saved targeted MUSE checkplot summary to: {summary_path}")
+    return paths
+
+
+def plot_population_fit_summary(outpath, lam_gal, galaxy, bestfit, title):
+    """
+    Lightweight parent-process plot for parallel population-fit diagnostics.
+    """
+    resid = galaxy - bestfit
+    resid_scale = robust_sigma(resid[np.isfinite(resid)], zero=1)
+    if not np.isfinite(resid_scale) or resid_scale <= 0:
+        resid_scale = 1.0
+
+    fig, (ax_fit, ax_resid) = plt.subplots(
+        2, 1, figsize=(16, 5), sharex=True, gridspec_kw={"height_ratios": [3, 1]}
+    )
+    ax_fit.plot(lam_gal, galaxy, color="0.25", lw=0.8, label="Binned spectrum")
+    ax_fit.plot(lam_gal, bestfit, color="tab:blue", lw=1.0, label="pPXF/XSL population fit")
+    ax_fit.set_title(title)
+    ax_fit.set_ylabel("Flux")
+    ax_fit.legend(loc="best", frameon=False)
+
+    ax_resid.plot(lam_gal, resid / resid_scale, color="0.25", lw=0.7)
+    ax_resid.axhline(0, color="k", lw=0.7)
+    ax_resid.axhline(3, color="0.5", ls="--", lw=0.6)
+    ax_resid.axhline(-3, color="0.5", ls="--", lw=0.6)
+    ax_resid.set_xlabel("Rest wavelength [Angstrom]")
+    ax_resid.set_ylabel("Res./MAD")
+    fig.tight_layout()
+    fig.savefig(outpath, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+def fit_one_muse_bin_worker(jbin):
+    """
+    Fit one PowerBin spectrum. Workers share read-only arrays and return copies.
+    """
+    galaxy = binned_spectra[:, jbin]
+
+    pp_kin = fit_stellar_kinematics(
+        sps.templates, galaxy, s.velscale, start, mask0,
+        lam_gal, sps.lam_temp,
+        degree=KIN_DEGREE, mdegree=KIN_MDEGREE,
+        moments=KIN_MOMENTS, bias=KIN_BIAS,
+        plot=False, quiet=True,
+    )
+
+    pp_pop, pp_pop0 = fit_population_regularized(
+        sps.templates, galaxy, pp_kin.noise_vector, s.velscale, pp_kin.sol,
+        pp_kin.clean_mask, lam_gal, sps.lam_temp, reg_dim,
+        regul_start=REGUL_START, regul_max=REGUL_MAX,
+        bracket_steps=REGUL_BRACKET_STEPS, bisect_steps=REGUL_BISECT_STEPS,
+        mdegree=POP_MDEGREE, quiet=True,
+    )
+
+    light_weights = pp_pop.weights.reshape(reg_dim)
+    lg_age, metal = sps.mean_age_metal(light_weights, quiet=True)
+    lg_age_err = np.nan
+    metal_err = np.nan
+
+    if RUN_POP_MC:
+        lg_age_err, metal_err = monte_carlo_population_errors(
+            sps.templates,
+            model_spectrum=pp_pop.bestfit,
+            noise_vector=pp_pop.noise_vector,
+            velscale=s.velscale,
+            kin_sol=pp_kin.sol,
+            mask=pp_kin.clean_mask,
+            lam=lam_gal,
+            lam_temp=sps.lam_temp,
+            reg_dim=reg_dim,
+            sps=sps,
+            regul=pp_pop.regul_used,
+            n_mc=POP_MC_N,
+            mdegree=POP_MDEGREE,
+            seed=RNG_SEED + jbin,
+        )
+
+    sol = np.full(KIN_MOMENTS, np.nan, dtype=float)
+    sol_raw = np.atleast_1d(np.asarray(pp_kin.sol, dtype=float))
+    sol[: min(sol.size, sol_raw.size)] = sol_raw[: min(sol.size, sol_raw.size)]
+
+    err = np.full(KIN_MOMENTS, np.nan, dtype=float)
+    if pp_kin.error_corr is not None:
+        err_raw = np.atleast_1d(np.asarray(pp_kin.error_corr, dtype=float))
+        err[: min(err.size, err_raw.size)] = err_raw[: min(err.size, err_raw.size)]
+
+    return {
+        "jbin": int(jbin),
+        "sol": sol,
+        "err": err,
+        "sn": float(pp_kin.sn),
+        "chi2": float(pp_pop.chi2),
+        "regul": float(pp_pop.regul_used),
+        "optimal_template": np.asarray(pp_kin.optimal_template, dtype=float),
+        "weights": np.asarray(light_weights, dtype=float),
+        "bestfit": np.asarray(pp_pop.bestfit, dtype=float),
+        "lg_age": float(lg_age),
+        "metal": float(metal),
+        "lg_age_err": float(lg_age_err),
+        "metal_err": float(metal_err),
+    }
+
+
+def iter_muse_bin_results(nbins, n_workers):
+    """
+    Yield per-bin fit results, using concurrent worker threads when requested.
+
+    A forked process pool can crash abruptly on macOS/Accelerate/SciPy in this
+    notebook-style script. Threads avoid that fork-safety problem while still
+    allowing the heavy numpy/scipy/pPXF work to run concurrently.
+    """
+    if n_workers <= 1:
+        for jbin in tqdm(range(nbins), desc="Fitting MUSE bins"):
+            yield fit_one_muse_bin_worker(jbin)
+        return
+
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futures = {pool.submit(fit_one_muse_bin_worker, jbin): jbin for jbin in range(nbins)}
+        for fut in tqdm(as_completed(futures), total=nbins, desc="Fitting MUSE bins"):
+            yield fut.result()
+
+
+def store_muse_bin_result(result):
+    """
+    Copy one worker result into the parent arrays and write requested previews.
+    """
+    jbin = int(result["jbin"])
+    sol = np.asarray(result["sol"], dtype=float)
+    err = np.asarray(result["err"], dtype=float)
+
+    velbin[jbin], sigbin[jbin] = sol[:2]
+    if sol.size > 2:
+        h3bin[jbin] = sol[2]
+    if sol.size > 3:
+        h4bin[jbin] = sol[3]
+    velerr_bin[jbin], sigerr_bin[jbin] = err[:2]
+    if err.size > 2:
+        h3err_bin[jbin] = err[2]
+    if err.size > 3:
+        h4err_bin[jbin] = err[3]
+
+    sn_bin[jbin] = result["sn"]
+    chi2_bin[jbin] = result["chi2"]
+    regul_bin[jbin] = result["regul"]
+    optimal_templates[:, jbin] = result["optimal_template"]
+    weights_bin[..., jbin] = result["weights"]
+    lg_age_bin[jbin] = result["lg_age"]
+    metalbin[jbin] = result["metal"]
+    lg_age_err_bin[jbin] = result["lg_age_err"]
+    metal_err_bin[jbin] = result["metal_err"]
+    binned_bestfit[:, jbin] = result["bestfit"]
+
+    if jbin < N_PLOTS_BINS:
+        plot_population_fit_summary(
+            plots_path / f"population_fit_bin_{jbin:03d}.png",
+            lam_gal,
+            binned_spectra[:, jbin],
+            binned_bestfit[:, jbin],
+            (
+                f"Power bin {jbin + 1}/{nbins} | "
+                f"sigma={sigbin[jbin]:.1f}±{sigerr_bin[jbin]:.1f} km/s | "
+                f"h3={h3bin[jbin]:+.3f}, h4={h4bin[jbin]:+.3f} | "
+                f"S/N={sn_bin[jbin]:.1f} | regul={regul_bin[jbin]:.2f}"
+            ),
+        )
+        print(
+            f"bin {jbin + 1:3d}/{nbins:3d}  "
+            f"V={velbin[jbin]:8.2f}±{velerr_bin[jbin]:6.2f}  "
+            f"sigma={sigbin[jbin]:7.2f}±{sigerr_bin[jbin]:6.2f}  "
+            f"h3={h3bin[jbin]:+7.3f}±{h3err_bin[jbin]:6.3f}  "
+            f"h4={h4bin[jbin]:+7.3f}±{h4err_bin[jbin]:6.3f}  "
+            f"logAge={lg_age_bin[jbin]:7.3f}  [M/H]={metalbin[jbin]:7.3f}  "
+            f"regul={regul_bin[jbin]:8.2f}",
+            flush=True,
+        )
+
+
 # %% [markdown]
 # ## Main script
 
 # %%
 plots_path = ensure_dir(PLOTS_PATH)
+run_config_path = plots_path / "run_config.json"
 s = read_data_cube(OBJFILE, LAM_RANGE, REDSHIFT)
 
 # %% [markdown]
@@ -1072,6 +1695,7 @@ sps.templates = sps.templates.reshape(npix_temp, -1)
 # %%
 lam_range_temp = np.exp(sps.ln_lam_temp[[0, -1]])
 mask0 = util.determine_mask(s.ln_lam_gal, lam_range_temp, width=1000)
+mask0 = apply_wavelength_mask_windows(mask0, np.exp(s.ln_lam_gal), KIN_MASK_WINDOWS)
 
 vel0 = 0.0
 start = [vel0, 200.0]
@@ -1082,8 +1706,12 @@ ngalpix = len(lam_gal)
 
 velbin = np.zeros(nbins)
 sigbin = np.zeros(nbins)
+h3bin = np.full(nbins, np.nan)
+h4bin = np.full(nbins, np.nan)
 velerr_bin = np.full(nbins, np.nan)
 sigerr_bin = np.full(nbins, np.nan)
+h3err_bin = np.full(nbins, np.nan)
+h4err_bin = np.full(nbins, np.nan)
 
 lg_age_bin = np.full(nbins, np.nan)
 metalbin = np.full(nbins, np.nan)
@@ -1099,80 +1727,31 @@ weights_bin = np.empty((*reg_dim, nbins))
 binned_spectra = np.empty((ngalpix, nbins))
 binned_bestfit = np.empty((ngalpix, nbins))
 
-for jbin in tqdm(range(nbins)):
-    plot = jbin < N_PLOTS_BINS
+for jbin in tqdm(range(nbins), desc="Averaging MUSE PowerBins"):
     w = bin_num == jbin
-    galaxy = np.nanmean(s.spectra[:, w], axis=1)
+    binned_spectra[:, jbin] = np.nanmean(s.spectra[:, w], axis=1)
 
-    pp_kin = fit_stellar_kinematics(
-        sps.templates, galaxy, s.velscale, start, mask0,
-        lam_gal, sps.lam_temp,
-        degree=KIN_DEGREE, mdegree=KIN_MDEGREE,
-        plot=plot, quiet=not plot
-    )
-
-    velbin[jbin], sigbin[jbin] = pp_kin.sol[:2]
-    if pp_kin.error_corr is not None:
-        velerr_bin[jbin], sigerr_bin[jbin] = pp_kin.error_corr[:2]
-
-    sn_bin[jbin] = pp_kin.sn
-    optimal_templates[:, jbin] = pp_kin.optimal_template
-
-    pp_pop, pp_pop0 = fit_population_regularized(
-        sps.templates, galaxy, pp_kin.noise_vector, s.velscale, pp_kin.sol,
-        pp_kin.clean_mask, lam_gal, sps.lam_temp, reg_dim,
-        regul_start=REGUL_START, regul_max=REGUL_MAX,
-        bracket_steps=REGUL_BRACKET_STEPS, bisect_steps=REGUL_BISECT_STEPS,
-        mdegree=POP_MDEGREE, quiet=not plot
-    )
-
-    light_weights = pp_pop.weights.reshape(reg_dim)
-    weights_bin[..., jbin] = light_weights
-    lg_age_bin[jbin], metalbin[jbin] = sps.mean_age_metal(light_weights, quiet=not plot)
-
-    if RUN_POP_MC:
-        age_err, metal_err = monte_carlo_population_errors(
-            sps.templates,
-            model_spectrum=pp_pop.bestfit,
-            noise_vector=pp_pop.noise_vector,
-            velscale=s.velscale,
-            kin_sol=pp_kin.sol,
-            mask=pp_kin.clean_mask,
-            lam=lam_gal,
-            lam_temp=sps.lam_temp,
-            reg_dim=reg_dim,
-            sps=sps,
-            regul=pp_pop.regul_used,
-            n_mc=POP_MC_N,
-            mdegree=POP_MDEGREE,
-            seed=RNG_SEED + jbin,
-        )
-        lg_age_err_bin[jbin] = age_err
-        metal_err_bin[jbin] = metal_err
-
-    chi2_bin[jbin] = pp_pop.chi2
-    regul_bin[jbin] = pp_pop.regul_used
-    binned_spectra[:, jbin] = galaxy
-    binned_bestfit[:, jbin] = pp_pop.bestfit
-
-    if plot:
-        plt.figure(figsize=(16, 4))
-        pp_pop.plot()
-        plt.title(
-            f"Power bin {jbin + 1}/{nbins} | "
-            f"sigma={sigbin[jbin]:.1f}±{sigerr_bin[jbin]:.1f} km/s | "
-            f"S/N={sn_bin[jbin]:.1f} | regul={regul_bin[jbin]:.2f}"
-        )
-        plt.tight_layout()
-        plt.savefig(plots_path / f"population_fit_bin_{jbin:03d}.png", dpi=300, bbox_inches="tight")
-
-        print(
-            f"bin {jbin + 1:3d}/{nbins:3d}  "
-            f"V={velbin[jbin]:8.2f}±{velerr_bin[jbin]:6.2f}  "
-            f"sigma={sigbin[jbin]:7.2f}±{sigerr_bin[jbin]:6.2f}  "
-            f"logAge={lg_age_bin[jbin]:7.3f}  [M/H]={metalbin[jbin]:7.3f}  "
-            f"regul={regul_bin[jbin]:8.2f}"
-        )
+n_workers = max(1, min(int(N_WORKERS), nbins))
+print(f"Fitting {nbins} MUSE PowerBin spectra with {n_workers} worker thread(s).")
+write_run_config_json(
+    run_config_path,
+    "started",
+    s=s,
+    sps_filename=str(filename),
+    sps_obj=sps,
+    reg_dim_value=reg_dim,
+    lam_gal_value=lam_gal,
+    lam_range_temp_value=lam_range_temp,
+    mask_value=mask0,
+    nbins_value=nbins,
+    outputs={
+        "output_directory": plots_path,
+        "run_config": run_config_path,
+        "sn_bins_plot": plots_path / "sn_bins.png",
+    },
+)
+for result in iter_muse_bin_results(nbins, n_workers):
+    store_muse_bin_result(result)
 
 # %% [markdown]
 # ### Maps
@@ -1242,8 +1821,12 @@ fits_path, npz_path = save_ppxf_products(
     bin_num=bin_num,
     velbin=velbin,
     sigbin=sigbin,
+    h3bin=h3bin,
+    h4bin=h4bin,
     velerr_bin=velerr_bin,
     sigerr_bin=sigerr_bin,
+    h3err_bin=h3err_bin,
+    h4err_bin=h4err_bin,
     lg_age_bin=lg_age_bin,
     metalbin=metalbin,
     lg_age_err_bin=lg_age_err_bin,
@@ -1257,4 +1840,55 @@ fits_path, npz_path = save_ppxf_products(
     chi2_bin=chi2_bin,
     lam_gal=lam_gal,
     gas_output=gas_output,
+)
+
+targeted_checkplots = write_targeted_muse_checkplots(
+    plots_path=plots_path,
+    s=s,
+    bin_num=bin_num,
+    sigbin=sigbin,
+    h3bin=h3bin,
+    h4bin=h4bin,
+    binned_spectra=binned_spectra,
+    binned_bestfit=binned_bestfit,
+    lam_gal=lam_gal,
+    sn_bin=sn_bin,
+    central_radius_arcsec=CHECK_PLOT_RADIUS_ARCSEC,
+)
+
+write_run_config_json(
+    run_config_path,
+    "completed",
+    s=s,
+    sps_filename=str(filename),
+    sps_obj=sps,
+    reg_dim_value=reg_dim,
+    lam_gal_value=lam_gal,
+    lam_range_temp_value=lam_range_temp,
+    mask_value=mask0,
+    nbins_value=nbins,
+    outputs={
+        "output_directory": plots_path,
+        "run_config": run_config_path,
+        "fits": fits_path,
+        "npz": npz_path,
+        "sn_bins_plot": plots_path / "sn_bins.png",
+        "vel_age_maps": plots_path / "vel_age_maps.png",
+        "metal_maps": plots_path / "metal_maps.png",
+        "targeted_checkplot_summary": plots_path / "xsl_targeted_checkplots_summary.txt",
+        "targeted_checkplots": targeted_checkplots,
+        "gas_example": (
+            {
+                "spaxel_index": int(gas_output["spaxel_index"]),
+                "bin_index": int(gas_output["bin_index"]),
+                "plots": {
+                    "initial": plots_path / "ppxf_fit_gas_initial.png",
+                    "final": plots_path / "ppxf_fit_gas_final.png",
+                    "emission_lines": plots_path / "emission_lines.png",
+                },
+            }
+            if gas_output is not None
+            else None
+        ),
+    },
 )

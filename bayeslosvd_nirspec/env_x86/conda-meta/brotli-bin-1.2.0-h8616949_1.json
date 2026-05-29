@@ -1,0 +1,43 @@
+{
+  "name": "brotli-bin",
+  "version": "1.2.0",
+  "build": "h8616949_1",
+  "build_number": 1,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "brotli-bin-1.2.0-h8616949_1.conda",
+  "md5": "34803b20dfec7af32ba675c5ccdbedbf",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/brotli-bin-1.2.0-h8616949_1.conda",
+  "sha256": "dcb5a2b29244b82af2545efad13dfdf8dddb86f88ce64ff415be9e7a10cc0383",
+  "depends": [
+    "__osx >=10.13",
+    "libbrotlidec 1.2.0 h8616949_1",
+    "libbrotlienc 1.2.0 h8616949_1"
+  ],
+  "constrains": [],
+  "license": "MIT",
+  "timestamp": 1764017635000,
+  "size": 18589,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/brotli-bin-1.2.0-h8616949_1.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/brotli-bin-1.2.0-h8616949_1",
+  "files": [
+    "bin/brotli"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "bin/brotli",
+        "path_type": "hardlink",
+        "sha256": "15a3ba289357148b713f14631b0fc56fb1e8cec0ad339abb823bbfa9f8697f74",
+        "size_in_bytes": 32256,
+        "sha256_in_prefix": "15a3ba289357148b713f14631b0fc56fb1e8cec0ad339abb823bbfa9f8697f74"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/brotli-bin-1.2.0-h8616949_1",
+    "type": 1
+  }
+}

@@ -1,0 +1,367 @@
+{
+  "name": "libjpeg-turbo",
+  "version": "3.1.4.1",
+  "build": "ha1e9b39_0",
+  "build_number": 0,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "libjpeg-turbo-3.1.4.1-ha1e9b39_0.conda",
+  "md5": "57cc1464d457d01ac78f5860b9ca1714",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/libjpeg-turbo-3.1.4.1-ha1e9b39_0.conda",
+  "sha256": "6b809d8acb6b97bbb1a858eb4ba7b7163c67257b6c3f199dd9d1e0751f4c5b18",
+  "depends": [
+    "__osx >=11.0"
+  ],
+  "constrains": [
+    "jpeg <0.0.0a"
+  ],
+  "license": "IJG AND BSD-3-Clause AND Zlib",
+  "timestamp": 1775963139000,
+  "size": 587997,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/libjpeg-turbo-3.1.4.1-ha1e9b39_0.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/libjpeg-turbo-3.1.4.1-ha1e9b39_0",
+  "files": [
+    "bin/cjpeg",
+    "bin/djpeg",
+    "bin/jpegtran",
+    "bin/rdjpgcom",
+    "bin/tjbench",
+    "bin/wrjpgcom",
+    "include/jconfig.h",
+    "include/jerror.h",
+    "include/jmorecfg.h",
+    "include/jpeglib.h",
+    "include/turbojpeg.h",
+    "lib/cmake/libjpeg-turbo/libjpeg-turboConfig.cmake",
+    "lib/cmake/libjpeg-turbo/libjpeg-turboConfigVersion.cmake",
+    "lib/cmake/libjpeg-turbo/libjpeg-turboTargets-release.cmake",
+    "lib/cmake/libjpeg-turbo/libjpeg-turboTargets.cmake",
+    "lib/libjpeg.8.3.2.dylib",
+    "lib/libjpeg.8.dylib",
+    "lib/libjpeg.a",
+    "lib/libjpeg.dylib",
+    "lib/libturbojpeg.0.4.0.dylib",
+    "lib/libturbojpeg.0.dylib",
+    "lib/libturbojpeg.a",
+    "lib/libturbojpeg.dylib",
+    "lib/pkgconfig/libjpeg.pc",
+    "lib/pkgconfig/libturbojpeg.pc",
+    "share/doc/libjpeg-turbo/LICENSE.md",
+    "share/doc/libjpeg-turbo/README.ijg",
+    "share/doc/libjpeg-turbo/README.md",
+    "share/doc/libjpeg-turbo/example.c",
+    "share/doc/libjpeg-turbo/libjpeg.txt",
+    "share/doc/libjpeg-turbo/structure.txt",
+    "share/doc/libjpeg-turbo/tjcomp.c",
+    "share/doc/libjpeg-turbo/tjdecomp.c",
+    "share/doc/libjpeg-turbo/tjtran.c",
+    "share/doc/libjpeg-turbo/usage.txt",
+    "share/doc/libjpeg-turbo/wizard.txt",
+    "share/man/man1/cjpeg.1",
+    "share/man/man1/djpeg.1",
+    "share/man/man1/jpegtran.1",
+    "share/man/man1/rdjpgcom.1",
+    "share/man/man1/wrjpgcom.1"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "bin/cjpeg",
+        "path_type": "hardlink",
+        "sha256": "5066db888e68c39848fb40c004b48ebe4214848cae0c30711271de067c870ba6",
+        "size_in_bytes": 92784,
+        "sha256_in_prefix": "5066db888e68c39848fb40c004b48ebe4214848cae0c30711271de067c870ba6"
+      },
+      {
+        "_path": "bin/djpeg",
+        "path_type": "hardlink",
+        "sha256": "906842efbadc9a83aedaa1292375e36efdf3dd2072f0af60eee421a180f5ff1c",
+        "size_in_bytes": 68056,
+        "sha256_in_prefix": "906842efbadc9a83aedaa1292375e36efdf3dd2072f0af60eee421a180f5ff1c"
+      },
+      {
+        "_path": "bin/jpegtran",
+        "path_type": "hardlink",
+        "sha256": "0e9060d4e9bfd4d1369bff7ead73b80e3cc74abebe5d41ba95de5e4fa2888336",
+        "size_in_bytes": 70576,
+        "sha256_in_prefix": "0e9060d4e9bfd4d1369bff7ead73b80e3cc74abebe5d41ba95de5e4fa2888336"
+      },
+      {
+        "_path": "bin/rdjpgcom",
+        "path_type": "hardlink",
+        "sha256": "dd2c87ca246473712eee311cd5d1abc35c238ffd34d0b63b99dcea474e6d2b21",
+        "size_in_bytes": 17560,
+        "sha256_in_prefix": "dd2c87ca246473712eee311cd5d1abc35c238ffd34d0b63b99dcea474e6d2b21"
+      },
+      {
+        "_path": "bin/tjbench",
+        "path_type": "hardlink",
+        "sha256": "33ff9f33febfa105eecbf0a19cae5f53833f7909b42e0d2e3e582c958b093c18",
+        "size_in_bytes": 66784,
+        "sha256_in_prefix": "33ff9f33febfa105eecbf0a19cae5f53833f7909b42e0d2e3e582c958b093c18"
+      },
+      {
+        "_path": "bin/wrjpgcom",
+        "path_type": "hardlink",
+        "sha256": "38804a8286ed8058a000f84498a4a669a947c1add3f76fe01c48e1f565483d06",
+        "size_in_bytes": 21760,
+        "sha256_in_prefix": "38804a8286ed8058a000f84498a4a669a947c1add3f76fe01c48e1f565483d06"
+      },
+      {
+        "_path": "include/jconfig.h",
+        "path_type": "hardlink",
+        "sha256": "13a9516f69f8d2bc38c4ffcbf260ad02a834a1fe65423ed535834ab9333caf8b",
+        "size_in_bytes": 2067,
+        "sha256_in_prefix": "13a9516f69f8d2bc38c4ffcbf260ad02a834a1fe65423ed535834ab9333caf8b"
+      },
+      {
+        "_path": "include/jerror.h",
+        "path_type": "hardlink",
+        "sha256": "35354d148ea6da234bacd5435155d0ec1de9c05833602232a67f1cf184c04925",
+        "size_in_bytes": 16159,
+        "sha256_in_prefix": "35354d148ea6da234bacd5435155d0ec1de9c05833602232a67f1cf184c04925"
+      },
+      {
+        "_path": "include/jmorecfg.h",
+        "path_type": "hardlink",
+        "sha256": "b86b4abf452d39b737cb45503591e04e9ca38c5fd0e90d429387d0464005a28b",
+        "size_in_bytes": 14622,
+        "sha256_in_prefix": "b86b4abf452d39b737cb45503591e04e9ca38c5fd0e90d429387d0464005a28b"
+      },
+      {
+        "_path": "include/jpeglib.h",
+        "path_type": "hardlink",
+        "sha256": "dc3e8220f34b7e9f9e48620f5cb8dc070834feb3214bb12bbad78478ebb29e60",
+        "size_in_bytes": 55794,
+        "sha256_in_prefix": "dc3e8220f34b7e9f9e48620f5cb8dc070834feb3214bb12bbad78478ebb29e60"
+      },
+      {
+        "_path": "include/turbojpeg.h",
+        "path_type": "hardlink",
+        "sha256": "ae2abca2e4613e9f5d431b040652cb9caf2f80fdec46b44fa021da3fd0e5de1c",
+        "size_in_bytes": 120086,
+        "sha256_in_prefix": "ae2abca2e4613e9f5d431b040652cb9caf2f80fdec46b44fa021da3fd0e5de1c"
+      },
+      {
+        "_path": "lib/cmake/libjpeg-turbo/libjpeg-turboConfig.cmake",
+        "path_type": "hardlink",
+        "sha256": "70baa95a13e5238689a76c0adb29d8f6564999b596a4e4512ae37a89311f81a5",
+        "size_in_bytes": 981,
+        "sha256_in_prefix": "70baa95a13e5238689a76c0adb29d8f6564999b596a4e4512ae37a89311f81a5"
+      },
+      {
+        "_path": "lib/cmake/libjpeg-turbo/libjpeg-turboConfigVersion.cmake",
+        "path_type": "hardlink",
+        "sha256": "95fc9bf9eea0d2cfe1df265dd086ac5f44319fd4c87c8f3655feb28df4b0f0d3",
+        "size_in_bytes": 1863,
+        "sha256_in_prefix": "95fc9bf9eea0d2cfe1df265dd086ac5f44319fd4c87c8f3655feb28df4b0f0d3"
+      },
+      {
+        "_path": "lib/cmake/libjpeg-turbo/libjpeg-turboTargets-release.cmake",
+        "prefix_placeholder": "/Users/runner/miniforge3/conda-bld/libjpeg-turbo_1775962559271/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_place",
+        "file_mode": "text",
+        "path_type": "hardlink",
+        "sha256": "76e2530fb21bc8ad7a1b126519530c94f2c4ee4c55aaf0de97e5f5b4af0c8d66",
+        "size_in_bytes": 4427,
+        "sha256_in_prefix": "90a64508b3882d407c74709f81a72246aff5c5ca5f9cebceb233411607c95f8b"
+      },
+      {
+        "_path": "lib/cmake/libjpeg-turbo/libjpeg-turboTargets.cmake",
+        "prefix_placeholder": "/Users/runner/miniforge3/conda-bld/libjpeg-turbo_1775962559271/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_place",
+        "file_mode": "text",
+        "path_type": "hardlink",
+        "sha256": "eb5113145cf861a31f3522baae3a031f26afe8e01ad8910f4982914a381a04a0",
+        "size_in_bytes": 4876,
+        "sha256_in_prefix": "72681be1d838440491e682758449698ef8f03421496c482908a1ad203a678d4b"
+      },
+      {
+        "_path": "lib/libjpeg.8.3.2.dylib",
+        "path_type": "hardlink",
+        "sha256": "046ce9455bc4af7e1869b5a67bbb8d3d0cfb4edd5b125ce4f1ad99f0aca33148",
+        "size_in_bytes": 881216,
+        "sha256_in_prefix": "046ce9455bc4af7e1869b5a67bbb8d3d0cfb4edd5b125ce4f1ad99f0aca33148"
+      },
+      {
+        "_path": "lib/libjpeg.8.dylib",
+        "path_type": "softlink",
+        "sha256": "046ce9455bc4af7e1869b5a67bbb8d3d0cfb4edd5b125ce4f1ad99f0aca33148",
+        "size_in_bytes": 881216
+      },
+      {
+        "_path": "lib/libjpeg.a",
+        "path_type": "hardlink",
+        "sha256": "2bf09d7d40e32057ee4117fc1830575eee566adb58b867076b372499f7d3cb05",
+        "size_in_bytes": 1075800,
+        "sha256_in_prefix": "2bf09d7d40e32057ee4117fc1830575eee566adb58b867076b372499f7d3cb05"
+      },
+      {
+        "_path": "lib/libjpeg.dylib",
+        "path_type": "softlink",
+        "sha256": "046ce9455bc4af7e1869b5a67bbb8d3d0cfb4edd5b125ce4f1ad99f0aca33148",
+        "size_in_bytes": 881216
+      },
+      {
+        "_path": "lib/libturbojpeg.0.4.0.dylib",
+        "path_type": "hardlink",
+        "sha256": "69722a6ca7d1bb75e421e1217c02e1a2308a124945f00a57c52dfb791c18f924",
+        "size_in_bytes": 1078152,
+        "sha256_in_prefix": "69722a6ca7d1bb75e421e1217c02e1a2308a124945f00a57c52dfb791c18f924"
+      },
+      {
+        "_path": "lib/libturbojpeg.0.dylib",
+        "path_type": "softlink",
+        "sha256": "69722a6ca7d1bb75e421e1217c02e1a2308a124945f00a57c52dfb791c18f924",
+        "size_in_bytes": 1078152
+      },
+      {
+        "_path": "lib/libturbojpeg.a",
+        "path_type": "hardlink",
+        "sha256": "e31ceb4a0d4305ff575a3164306b5059a86f0ca8b10804890139cf1f249b12c6",
+        "size_in_bytes": 1333784,
+        "sha256_in_prefix": "e31ceb4a0d4305ff575a3164306b5059a86f0ca8b10804890139cf1f249b12c6"
+      },
+      {
+        "_path": "lib/libturbojpeg.dylib",
+        "path_type": "softlink",
+        "sha256": "69722a6ca7d1bb75e421e1217c02e1a2308a124945f00a57c52dfb791c18f924",
+        "size_in_bytes": 1078152
+      },
+      {
+        "_path": "lib/pkgconfig/libjpeg.pc",
+        "prefix_placeholder": "/Users/runner/miniforge3/conda-bld/libjpeg-turbo_1775962559271/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_place",
+        "file_mode": "text",
+        "path_type": "hardlink",
+        "sha256": "19bfb925356aed13b3888773fe25027dca854ab05ca0eec4ca74f60c8288dfee",
+        "size_in_bytes": 1227,
+        "sha256_in_prefix": "55a0f6dbb42022c1e66d8694ab8c10dcf61a818435e0d2ff46bb20bd87518bd2"
+      },
+      {
+        "_path": "lib/pkgconfig/libturbojpeg.pc",
+        "prefix_placeholder": "/Users/runner/miniforge3/conda-bld/libjpeg-turbo_1775962559271/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_place",
+        "file_mode": "text",
+        "path_type": "hardlink",
+        "sha256": "cd2026043423d12314f8548428a29658dddd53e08bd697900cdfbbf74a49cb59",
+        "size_in_bytes": 1239,
+        "sha256_in_prefix": "c410a44e43f95bd9e10cb029a4f81a6df19211b54119b9d3ecacfad5929fce86"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/LICENSE.md",
+        "path_type": "hardlink",
+        "sha256": "e10114e6e40f3d0311c401ca25245ac5ef459a43c20f976fd63f03e816f5741f",
+        "size_in_bytes": 5622,
+        "sha256_in_prefix": "e10114e6e40f3d0311c401ca25245ac5ef459a43c20f976fd63f03e816f5741f"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/README.ijg",
+        "path_type": "hardlink",
+        "sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6",
+        "size_in_bytes": 12799,
+        "sha256_in_prefix": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/README.md",
+        "path_type": "hardlink",
+        "sha256": "ee2eb4652c7ce5f196e2d29964f23e0dd6dd846f9819e4754610e6337415fb2d",
+        "size_in_bytes": 17912,
+        "sha256_in_prefix": "ee2eb4652c7ce5f196e2d29964f23e0dd6dd846f9819e4754610e6337415fb2d"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/example.c",
+        "path_type": "hardlink",
+        "sha256": "1c0aeda4768fb884fc3f052deff778e2a86d13b17803b629e374007460bec328",
+        "size_in_bytes": 24191,
+        "sha256_in_prefix": "1c0aeda4768fb884fc3f052deff778e2a86d13b17803b629e374007460bec328"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/libjpeg.txt",
+        "path_type": "hardlink",
+        "sha256": "e22ea2053f7e9b846d174a62e4cce4398bbd49ddd6888463df9884bb0edc7d85",
+        "size_in_bytes": 177182,
+        "sha256_in_prefix": "e22ea2053f7e9b846d174a62e4cce4398bbd49ddd6888463df9884bb0edc7d85"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/structure.txt",
+        "path_type": "hardlink",
+        "sha256": "ef5f75523e96d352d9153a627b07bc35f24d4de951bdad694d1a527b7bb95a12",
+        "size_in_bytes": 53403,
+        "sha256_in_prefix": "ef5f75523e96d352d9153a627b07bc35f24d4de951bdad694d1a527b7bb95a12"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/tjcomp.c",
+        "path_type": "hardlink",
+        "sha256": "d92ea33f24c49d738494357b5dd2ec7d48ab205a17f6d9a9c207b49f8b566030",
+        "size_in_bytes": 13475,
+        "sha256_in_prefix": "d92ea33f24c49d738494357b5dd2ec7d48ab205a17f6d9a9c207b49f8b566030"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/tjdecomp.c",
+        "path_type": "hardlink",
+        "sha256": "13941711c1f2c0f58def58ea65b7433b5b30da82b84027d84b05a5a5434d81c6",
+        "size_in_bytes": 13702,
+        "sha256_in_prefix": "13941711c1f2c0f58def58ea65b7433b5b30da82b84027d84b05a5a5434d81c6"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/tjtran.c",
+        "path_type": "hardlink",
+        "sha256": "89592de7f57a0edfd861ea29ee2836fe45b80b77b72be95bd497792f58c2ea6c",
+        "size_in_bytes": 14998,
+        "sha256_in_prefix": "89592de7f57a0edfd861ea29ee2836fe45b80b77b72be95bd497792f58c2ea6c"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/usage.txt",
+        "path_type": "hardlink",
+        "sha256": "d196e734853a0abd0210fb61d5dbf7561c7a7b89722628390771cf411b356150",
+        "size_in_bytes": 46748,
+        "sha256_in_prefix": "d196e734853a0abd0210fb61d5dbf7561c7a7b89722628390771cf411b356150"
+      },
+      {
+        "_path": "share/doc/libjpeg-turbo/wizard.txt",
+        "path_type": "hardlink",
+        "sha256": "3728907472df90ce30b1da41d11e9f23a66d051037c743be74cafd0e36ff176a",
+        "size_in_bytes": 11255,
+        "sha256_in_prefix": "3728907472df90ce30b1da41d11e9f23a66d051037c743be74cafd0e36ff176a"
+      },
+      {
+        "_path": "share/man/man1/cjpeg.1",
+        "path_type": "hardlink",
+        "sha256": "86e42e381b44ac9dd2b48466140eb3a7f1f95961f6f646c144584e173bc6ee6f",
+        "size_in_bytes": 16556,
+        "sha256_in_prefix": "86e42e381b44ac9dd2b48466140eb3a7f1f95961f6f646c144584e173bc6ee6f"
+      },
+      {
+        "_path": "share/man/man1/djpeg.1",
+        "path_type": "hardlink",
+        "sha256": "b559df09a3d4fd28f8ab3b801e22e3aae6195408a62b72a071cfddf053c52b7a",
+        "size_in_bytes": 11043,
+        "sha256_in_prefix": "b559df09a3d4fd28f8ab3b801e22e3aae6195408a62b72a071cfddf053c52b7a"
+      },
+      {
+        "_path": "share/man/man1/jpegtran.1",
+        "path_type": "hardlink",
+        "sha256": "465a48cc70829d305fb2ab22c38611cb98b4635736d1aaead681d5a9b3447b9c",
+        "size_in_bytes": 13300,
+        "sha256_in_prefix": "465a48cc70829d305fb2ab22c38611cb98b4635736d1aaead681d5a9b3447b9c"
+      },
+      {
+        "_path": "share/man/man1/rdjpgcom.1",
+        "path_type": "hardlink",
+        "sha256": "9f6920585ec2f7fe3f72fe2c7d9be1562806e5850b5c9af35b2abc54971c8f79",
+        "size_in_bytes": 1699,
+        "sha256_in_prefix": "9f6920585ec2f7fe3f72fe2c7d9be1562806e5850b5c9af35b2abc54971c8f79"
+      },
+      {
+        "_path": "share/man/man1/wrjpgcom.1",
+        "path_type": "hardlink",
+        "sha256": "d5725d2ae72e8029bccc0cb79f7b02b1d0080bf9ac96ac01bf7160d0fdba9574",
+        "size_in_bytes": 2626,
+        "sha256_in_prefix": "d5725d2ae72e8029bccc0cb79f7b02b1d0080bf9ac96ac01bf7160d0fdba9574"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/libjpeg-turbo-3.1.4.1-ha1e9b39_0",
+    "type": 1
+  }
+}

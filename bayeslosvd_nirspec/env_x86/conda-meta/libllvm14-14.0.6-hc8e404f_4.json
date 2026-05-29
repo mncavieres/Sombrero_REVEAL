@@ -1,0 +1,58 @@
+{
+  "name": "libllvm14",
+  "version": "14.0.6",
+  "build": "hc8e404f_4",
+  "build_number": 4,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "libllvm14-14.0.6-hc8e404f_4.conda",
+  "md5": "ed06753e2ba7c66ed0ca7f19578fcb68",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/libllvm14-14.0.6-hc8e404f_4.conda",
+  "sha256": "0df3902a300cfe092425f86144d5e00ef67be3cd1cc89fd63084d45262a772ad",
+  "depends": [
+    "libcxx >=15",
+    "libzlib >=1.2.13,<2.0.0a0"
+  ],
+  "constrains": [],
+  "license": "Apache-2.0 WITH LLVM-exception",
+  "timestamp": 1690563140000,
+  "size": 22467131,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/libllvm14-14.0.6-hc8e404f_4.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/libllvm14-14.0.6-hc8e404f_4",
+  "files": [
+    "lib/libLLVM-14.dylib",
+    "lib/libLTO.14.dylib",
+    "lib/libRemarks.14.dylib"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "lib/libLLVM-14.dylib",
+        "path_type": "hardlink",
+        "sha256": "7901d0ff88267e599092c528d3d606e9cf9c1e7ea10dbaa9cfa86199e96bc30d",
+        "size_in_bytes": 105098984,
+        "sha256_in_prefix": "7901d0ff88267e599092c528d3d606e9cf9c1e7ea10dbaa9cfa86199e96bc30d"
+      },
+      {
+        "_path": "lib/libLTO.14.dylib",
+        "path_type": "hardlink",
+        "sha256": "9e503ad1bb80daa77fced7d5578956baa1034de4796891395e88ca6c93bdd5d1",
+        "size_in_bytes": 78776,
+        "sha256_in_prefix": "9e503ad1bb80daa77fced7d5578956baa1034de4796891395e88ca6c93bdd5d1"
+      },
+      {
+        "_path": "lib/libRemarks.14.dylib",
+        "path_type": "hardlink",
+        "sha256": "c031781bc515916ed55541f88007b4325dbb34c0a9c9f5b35a43681e3a80b558",
+        "size_in_bytes": 10864,
+        "sha256_in_prefix": "c031781bc515916ed55541f88007b4325dbb34c0a9c9f5b35a43681e3a80b558"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/libllvm14-14.0.6-hc8e404f_4",
+    "type": 1
+  }
+}

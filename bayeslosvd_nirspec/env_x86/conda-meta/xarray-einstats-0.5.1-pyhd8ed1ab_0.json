@@ -1,0 +1,186 @@
+{
+  "name": "xarray-einstats",
+  "version": "0.5.1",
+  "build": "pyhd8ed1ab_0",
+  "build_number": 0,
+  "channel": "https://conda.anaconda.org/conda-forge/noarch",
+  "subdir": "noarch",
+  "fn": "xarray-einstats-0.5.1-pyhd8ed1ab_0.conda",
+  "md5": "481c0ae1e0d53c380c5ddec5b8b0c980",
+  "url": "https://conda.anaconda.org/conda-forge/noarch/xarray-einstats-0.5.1-pyhd8ed1ab_0.conda",
+  "sha256": "2755bfe32362321feeb3631ee0d00ad7d0a836aaf4d0c57319be3b66876654f6",
+  "depends": [
+    "numpy >=1.20",
+    "python >=3.8",
+    "scipy >=1.6",
+    "xarray >=2022.09.0"
+  ],
+  "constrains": [],
+  "noarch": "python",
+  "license": "Apache-2.0",
+  "package_type": "noarch_python",
+  "timestamp": 1674259762000,
+  "size": 30501,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/xarray-einstats-0.5.1-pyhd8ed1ab_0.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/xarray-einstats-0.5.1-pyhd8ed1ab_0",
+  "files": [
+    "lib/python3.8/site-packages/xarray_einstats-0.5.1.dist-info/INSTALLER",
+    "lib/python3.8/site-packages/xarray_einstats-0.5.1.dist-info/LICENSE",
+    "lib/python3.8/site-packages/xarray_einstats-0.5.1.dist-info/METADATA",
+    "lib/python3.8/site-packages/xarray_einstats-0.5.1.dist-info/RECORD",
+    "lib/python3.8/site-packages/xarray_einstats-0.5.1.dist-info/REQUESTED",
+    "lib/python3.8/site-packages/xarray_einstats-0.5.1.dist-info/WHEEL",
+    "lib/python3.8/site-packages/xarray_einstats-0.5.1.dist-info/direct_url.json",
+    "lib/python3.8/site-packages/xarray_einstats/__init__.py",
+    "lib/python3.8/site-packages/xarray_einstats/einops.py",
+    "lib/python3.8/site-packages/xarray_einstats/linalg.py",
+    "lib/python3.8/site-packages/xarray_einstats/numba.py",
+    "lib/python3.8/site-packages/xarray_einstats/py.typed",
+    "lib/python3.8/site-packages/xarray_einstats/stats.py",
+    "lib/python3.8/site-packages/xarray_einstats/tutorial.py",
+    "lib/python3.8/site-packages/xarray_einstats/__pycache__/__init__.cpython-38.pyc",
+    "lib/python3.8/site-packages/xarray_einstats/__pycache__/einops.cpython-38.pyc",
+    "lib/python3.8/site-packages/xarray_einstats/__pycache__/linalg.cpython-38.pyc",
+    "lib/python3.8/site-packages/xarray_einstats/__pycache__/numba.cpython-38.pyc",
+    "lib/python3.8/site-packages/xarray_einstats/__pycache__/stats.cpython-38.pyc",
+    "lib/python3.8/site-packages/xarray_einstats/__pycache__/tutorial.cpython-38.pyc"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "site-packages/xarray_einstats-0.5.1.dist-info/INSTALLER",
+        "path_type": "hardlink",
+        "sha256": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8",
+        "size_in_bytes": 5,
+        "sha256_in_prefix": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8"
+      },
+      {
+        "_path": "site-packages/xarray_einstats-0.5.1.dist-info/LICENSE",
+        "path_type": "hardlink",
+        "sha256": "4bfb7aac0285a6b8519fc92193ccdaf7bcd9630d2d40f611adf77e67b89af0a1",
+        "size_in_bytes": 11485,
+        "sha256_in_prefix": "4bfb7aac0285a6b8519fc92193ccdaf7bcd9630d2d40f611adf77e67b89af0a1"
+      },
+      {
+        "_path": "site-packages/xarray_einstats-0.5.1.dist-info/METADATA",
+        "path_type": "hardlink",
+        "sha256": "9ce24fcd679153a6deab5edd42a33755de6b68e448f9e9223713e4303162b808",
+        "size_in_bytes": 5721,
+        "sha256_in_prefix": "9ce24fcd679153a6deab5edd42a33755de6b68e448f9e9223713e4303162b808"
+      },
+      {
+        "_path": "site-packages/xarray_einstats-0.5.1.dist-info/RECORD",
+        "path_type": "hardlink",
+        "sha256": "addf40066004842abaae6b638bbdb79c6067da53e2055f037f88c2a761bf7976",
+        "size_in_bytes": 1536,
+        "sha256_in_prefix": "addf40066004842abaae6b638bbdb79c6067da53e2055f037f88c2a761bf7976"
+      },
+      {
+        "_path": "site-packages/xarray_einstats-0.5.1.dist-info/REQUESTED",
+        "path_type": "hardlink",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_in_bytes": 0,
+        "sha256_in_prefix": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "_path": "site-packages/xarray_einstats-0.5.1.dist-info/WHEEL",
+        "path_type": "hardlink",
+        "sha256": "ad282afc9a4717d7c7475971e77ab083fd7ed8bca9644fea99cb976d552af78f",
+        "size_in_bytes": 81,
+        "sha256_in_prefix": "ad282afc9a4717d7c7475971e77ab083fd7ed8bca9644fea99cb976d552af78f"
+      },
+      {
+        "_path": "site-packages/xarray_einstats-0.5.1.dist-info/direct_url.json",
+        "path_type": "hardlink",
+        "sha256": "33180c29806055a94a24a153b7ddfc19b3bdee7cd81c8d805c8a1a58d273c920",
+        "size_in_bytes": 111,
+        "sha256_in_prefix": "33180c29806055a94a24a153b7ddfc19b3bdee7cd81c8d805c8a1a58d273c920"
+      },
+      {
+        "_path": "site-packages/xarray_einstats/__init__.py",
+        "path_type": "hardlink",
+        "sha256": "012970f5aba11899dc41c439caf34d00a27f30b49ee84f038edda3eda9db9005",
+        "size_in_bytes": 5243,
+        "sha256_in_prefix": "012970f5aba11899dc41c439caf34d00a27f30b49ee84f038edda3eda9db9005"
+      },
+      {
+        "_path": "site-packages/xarray_einstats/einops.py",
+        "path_type": "hardlink",
+        "sha256": "b788e1a347e40cc61fd4e5cefc90e4877c0eb454e938e57fbd5056d203813167",
+        "size_in_bytes": 16675,
+        "sha256_in_prefix": "b788e1a347e40cc61fd4e5cefc90e4877c0eb454e938e57fbd5056d203813167"
+      },
+      {
+        "_path": "site-packages/xarray_einstats/linalg.py",
+        "path_type": "hardlink",
+        "sha256": "9594acea88b681e73e9be23013409ba29f831b1baf0c0567c345d69f311ab98a",
+        "size_in_bytes": 23614,
+        "sha256_in_prefix": "9594acea88b681e73e9be23013409ba29f831b1baf0c0567c345d69f311ab98a"
+      },
+      {
+        "_path": "site-packages/xarray_einstats/numba.py",
+        "path_type": "hardlink",
+        "sha256": "ea98fa95c75f6c8a905150384cc0d1b8492a838a5f6edb33d8318470f051eb07",
+        "size_in_bytes": 9637,
+        "sha256_in_prefix": "ea98fa95c75f6c8a905150384cc0d1b8492a838a5f6edb33d8318470f051eb07"
+      },
+      {
+        "_path": "site-packages/xarray_einstats/py.typed",
+        "path_type": "hardlink",
+        "sha256": "cba011a067d30e5b1739f6aaed3551f6de8d21d4cd8661910d5acd363d07b3ae",
+        "size_in_bytes": 27,
+        "sha256_in_prefix": "cba011a067d30e5b1739f6aaed3551f6de8d21d4cd8661910d5acd363d07b3ae"
+      },
+      {
+        "_path": "site-packages/xarray_einstats/stats.py",
+        "path_type": "hardlink",
+        "sha256": "04dd114459c22abc99f00170dd26bebeb1477de015ebc996d1fc454aaafed017",
+        "size_in_bytes": 22340,
+        "sha256_in_prefix": "04dd114459c22abc99f00170dd26bebeb1477de015ebc996d1fc454aaafed017"
+      },
+      {
+        "_path": "site-packages/xarray_einstats/tutorial.py",
+        "path_type": "hardlink",
+        "sha256": "ffd68104dfe1b2923f9a7b8d2fee1ccec46c150153e21bc8a50c64d77040d9c8",
+        "size_in_bytes": 2297,
+        "sha256_in_prefix": "ffd68104dfe1b2923f9a7b8d2fee1ccec46c150153e21bc8a50c64d77040d9c8"
+      },
+      {
+        "_path": "lib/python3.8/site-packages/xarray_einstats/__pycache__/__init__.cpython-38.pyc",
+        "path_type": "pyc_file",
+        "size_in_bytes": 6542
+      },
+      {
+        "_path": "lib/python3.8/site-packages/xarray_einstats/__pycache__/einops.cpython-38.pyc",
+        "path_type": "pyc_file",
+        "size_in_bytes": 16045
+      },
+      {
+        "_path": "lib/python3.8/site-packages/xarray_einstats/__pycache__/linalg.cpython-38.pyc",
+        "path_type": "pyc_file",
+        "size_in_bytes": 21422
+      },
+      {
+        "_path": "lib/python3.8/site-packages/xarray_einstats/__pycache__/numba.cpython-38.pyc",
+        "path_type": "pyc_file",
+        "size_in_bytes": 8786
+      },
+      {
+        "_path": "lib/python3.8/site-packages/xarray_einstats/__pycache__/stats.cpython-38.pyc",
+        "path_type": "pyc_file",
+        "size_in_bytes": 20749
+      },
+      {
+        "_path": "lib/python3.8/site-packages/xarray_einstats/__pycache__/tutorial.cpython-38.pyc",
+        "path_type": "pyc_file",
+        "size_in_bytes": 2511
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/xarray-einstats-0.5.1-pyhd8ed1ab_0",
+    "type": 1
+  }
+}

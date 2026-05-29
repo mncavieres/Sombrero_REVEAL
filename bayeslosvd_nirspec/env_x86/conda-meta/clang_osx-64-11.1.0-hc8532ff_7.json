@@ -1,0 +1,60 @@
+{
+  "name": "clang_osx-64",
+  "version": "11.1.0",
+  "build": "hc8532ff_7",
+  "build_number": 7,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "clang_osx-64-11.1.0-hc8532ff_7.tar.bz2",
+  "md5": "f692534676487acef4efbbc031f0e7bb",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/clang_osx-64-11.1.0-hc8532ff_7.tar.bz2",
+  "sha256": "afdb6b46a83a50d5102580d63b0ed62aede8b3a8ac847ef04906b69c3519b8f6",
+  "depends": [
+    "cctools_osx-64",
+    "clang 11.1.0.*",
+    "compiler-rt 11.1.0.*",
+    "ld64_osx-64",
+    "llvm-tools 11.1.0.*"
+  ],
+  "constrains": [],
+  "license": "BSD-3-Clause",
+  "timestamp": 1646370881000,
+  "size": 16564,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/clang_osx-64-11.1.0-hc8532ff_7.tar.bz2",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/clang_osx-64-11.1.0-hc8532ff_7",
+  "files": [
+    "bin/x86_64-apple-darwin13.4.0-clang",
+    "etc/conda/activate.d/activate_clang_osx-64.sh",
+    "etc/conda/deactivate.d/deactivate_clang_osx-64.sh"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "bin/x86_64-apple-darwin13.4.0-clang",
+        "path_type": "softlink",
+        "sha256": "1ad7f4cc483e7d936f905693e85d449d6ca2b361785c8d17c566f03346a80623",
+        "size_in_bytes": 148604
+      },
+      {
+        "_path": "etc/conda/activate.d/activate_clang_osx-64.sh",
+        "path_type": "hardlink",
+        "sha256": "eaeec845ac57fc1f9b576d46781fb49612d78475f9a97b186458bcc8b7091505",
+        "size_in_bytes": 9900,
+        "sha256_in_prefix": "eaeec845ac57fc1f9b576d46781fb49612d78475f9a97b186458bcc8b7091505"
+      },
+      {
+        "_path": "etc/conda/deactivate.d/deactivate_clang_osx-64.sh",
+        "path_type": "hardlink",
+        "sha256": "a498c92bc4f8c059e3392aae6f596814b6bdd18ba14ab221fb8fa52fbb91140a",
+        "size_in_bytes": 7415,
+        "sha256_in_prefix": "a498c92bc4f8c059e3392aae6f596814b6bdd18ba14ab221fb8fa52fbb91140a"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/clang_osx-64-11.1.0-hc8532ff_7",
+    "type": 1
+  }
+}

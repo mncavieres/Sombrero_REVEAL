@@ -1,0 +1,7 @@
+# Lambda  Width  Type
+# Rest-frame masks for strong gas/telluric-sensitive features in the G235H
+# stellar-kinematics window. Wavelengths and widths are in Angstrom.
+21220.0 100.0 line
+21660.0 100.0 line
+22235.0 90.0 line
+23210.0 100.0 line

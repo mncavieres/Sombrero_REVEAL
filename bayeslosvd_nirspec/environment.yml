@@ -1,0 +1,17 @@
+name: bayeslosvd
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pip
+  - numpy<1.24
+  - scipy
+  - matplotlib
+  - astropy
+  - h5py
+  - scikit-learn
+  - tqdm
+  - toml
+  - arviz<0.12
+  - pip:
+      - pystan==2.19.1.1

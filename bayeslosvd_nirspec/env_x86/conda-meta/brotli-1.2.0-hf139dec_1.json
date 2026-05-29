@@ -1,0 +1,76 @@
+{
+  "name": "brotli",
+  "version": "1.2.0",
+  "build": "hf139dec_1",
+  "build_number": 1,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "brotli-1.2.0-hf139dec_1.conda",
+  "md5": "149d8ee7d6541a02a6117d8814fd9413",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/brotli-1.2.0-hf139dec_1.conda",
+  "sha256": "c838c71ded28ada251589f6462fc0f7c09132396799eea2701277566a1a863bf",
+  "depends": [
+    "__osx >=10.13",
+    "brotli-bin 1.2.0 h8616949_1",
+    "libbrotlidec 1.2.0 h8616949_1",
+    "libbrotlienc 1.2.0 h8616949_1"
+  ],
+  "constrains": [],
+  "license": "MIT",
+  "timestamp": 1764017661000,
+  "size": 20194,
+  "requested_spec": "None",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/brotli-1.2.0-hf139dec_1.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/brotli-1.2.0-hf139dec_1",
+  "files": [
+    "include/brotli/decode.h",
+    "include/brotli/encode.h",
+    "include/brotli/port.h",
+    "include/brotli/shared_dictionary.h",
+    "include/brotli/types.h"
+  ],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": [
+      {
+        "_path": "include/brotli/decode.h",
+        "path_type": "hardlink",
+        "sha256": "027b91e62e85de6955e6334628b2ba0c77901a449e169fd9f95d6ea1cc91f980",
+        "size_in_bytes": 16913,
+        "sha256_in_prefix": "027b91e62e85de6955e6334628b2ba0c77901a449e169fd9f95d6ea1cc91f980"
+      },
+      {
+        "_path": "include/brotli/encode.h",
+        "path_type": "hardlink",
+        "sha256": "f1842e38da557efac517a35f1b27d288d464a723ef50316d3d20fe03f6046c06",
+        "size_in_bytes": 20068,
+        "sha256_in_prefix": "f1842e38da557efac517a35f1b27d288d464a723ef50316d3d20fe03f6046c06"
+      },
+      {
+        "_path": "include/brotli/port.h",
+        "path_type": "hardlink",
+        "sha256": "72b484d7a2561f3a9ad35ebd0d4f97f7a2d9863b619782ada5b083a4b6f40df5",
+        "size_in_bytes": 11439,
+        "sha256_in_prefix": "72b484d7a2561f3a9ad35ebd0d4f97f7a2d9863b619782ada5b083a4b6f40df5"
+      },
+      {
+        "_path": "include/brotli/shared_dictionary.h",
+        "path_type": "hardlink",
+        "sha256": "86230f0aaf533044d85d92f84b5aec8b7e4e231d4b64b098604083e7866e8097",
+        "size_in_bytes": 3535,
+        "sha256_in_prefix": "86230f0aaf533044d85d92f84b5aec8b7e4e231d4b64b098604083e7866e8097"
+      },
+      {
+        "_path": "include/brotli/types.h",
+        "path_type": "hardlink",
+        "sha256": "ebbd136dc411cc8167636d6f54b66ad0c234dc18989265c37a28c242eaae2efd",
+        "size_in_bytes": 2651,
+        "sha256_in_prefix": "ebbd136dc411cc8167636d6f54b66ad0c234dc18989265c37a28c242eaae2efd"
+      }
+    ]
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/brotli-1.2.0-hf139dec_1",
+    "type": 1
+  }
+}

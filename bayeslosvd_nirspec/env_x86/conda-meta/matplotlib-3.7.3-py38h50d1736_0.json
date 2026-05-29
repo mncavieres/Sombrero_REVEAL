@@ -1,0 +1,34 @@
+{
+  "name": "matplotlib",
+  "version": "3.7.3",
+  "build": "py38h50d1736_0",
+  "build_number": 0,
+  "channel": "https://conda.anaconda.org/conda-forge/osx-64",
+  "subdir": "osx-64",
+  "fn": "matplotlib-3.7.3-py38h50d1736_0.conda",
+  "md5": "24885db052b1f02675a2f45ed6be3396",
+  "url": "https://conda.anaconda.org/conda-forge/osx-64/matplotlib-3.7.3-py38h50d1736_0.conda",
+  "sha256": "971077b11d4c29950db75a81c1fe8de41fd77bb0c405a52cf6fcb37afc2e689d",
+  "depends": [
+    "matplotlib-base >=3.7.3,<3.7.4.0a0",
+    "python >=3.8,<3.9.0a0",
+    "python_abi 3.8.* *_cp38",
+    "tornado >=5"
+  ],
+  "constrains": [],
+  "license": "LicenseRef-PSF-2.0 and CC0-1.0",
+  "timestamp": 1695077213000,
+  "size": 8527,
+  "requested_spec": "matplotlib",
+  "package_tarball_full_path": "/opt/miniconda3/pkgs/matplotlib-3.7.3-py38h50d1736_0.conda",
+  "extracted_package_dir": "/opt/miniconda3/pkgs/matplotlib-3.7.3-py38h50d1736_0",
+  "files": [],
+  "paths_data": {
+    "paths_version": 1,
+    "paths": []
+  },
+  "link": {
+    "source": "/opt/miniconda3/pkgs/matplotlib-3.7.3-py38h50d1736_0",
+    "type": 1
+  }
+}

@@ -1,0 +1,7 @@
+# Lambda  FWHM
+# Approximate PHOENIX high-resolution template FWHM in Angstrom, using R=100000.
+16000.0  0.160000
+20000.0  0.200000
+24000.0  0.240000
+28000.0  0.280000
+32000.0  0.320000

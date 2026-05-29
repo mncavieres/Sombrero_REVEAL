@@ -86,6 +86,7 @@ class Config:
     min_goodpixels: int
     n_plot_spaxels: int
     csv_min_sn: float
+    check_plot_radius_arcsec: float
 
 
 @dataclass
@@ -888,6 +889,163 @@ def plot_spaxel_fit(outdir: Path, lam_ang: np.ndarray, galaxy: np.ndarray, resul
     return outpath
 
 
+def _map_values_for_valid_spaxels(cube_data: CubeData, value_map: np.ndarray) -> np.ndarray:
+    rows = np.asarray(cube_data.row, dtype=int) - 1
+    cols = np.asarray(cube_data.col, dtype=int) - 1
+    return np.asarray(value_map, dtype=float)[rows, cols]
+
+
+def select_target_spaxels(
+    cube_data: CubeData,
+    table_rows: list[dict[str, object]],
+    central_radius_arcsec: float,
+) -> dict[str, int]:
+    targets: dict[str, int] = {}
+    if cube_data.signal.size:
+        targets["brightest_spaxel"] = int(np.nanargmax(cube_data.signal))
+
+    radius = np.hypot(cube_data.x, cube_data.y)
+    best_j: int | None = None
+    best_sigma = -np.inf
+    for j, row in enumerate(table_rows):
+        if not bool(row.get("GOODFIT", False)):
+            continue
+        if not np.isfinite(radius[j]) or radius[j] > central_radius_arcsec:
+            continue
+        sigma = float(row.get("sigma", np.nan))
+        if np.isfinite(sigma) and sigma > best_sigma:
+            best_sigma = sigma
+            best_j = j
+
+    if best_j is None:
+        for j, row in enumerate(table_rows):
+            if not np.isfinite(radius[j]) or radius[j] > central_radius_arcsec:
+                continue
+            sigma = float(row.get("sigma", np.nan))
+            if np.isfinite(sigma) and sigma > best_sigma:
+                best_sigma = sigma
+                best_j = j
+
+    if best_j is not None:
+        targets[f"highest_sigma_within_{central_radius_arcsec:.2f}arcsec"] = int(best_j)
+    return targets
+
+
+def plot_target_fit_with_finding_maps(
+    outpath: Path,
+    cube_data: CubeData,
+    maps: dict[str, np.ndarray],
+    target_j: int,
+    galaxy: np.ndarray,
+    result: FitResult,
+    label: str,
+) -> None:
+    sigma_values = _map_values_for_valid_spaxels(cube_data, maps["SIGMA_MAP"])
+    signal_values = np.asarray(cube_data.signal, dtype=float)
+    tx = float(cube_data.x[target_j])
+    ty = float(cube_data.y[target_j])
+    row = int(cube_data.row[target_j])
+    col = int(cube_data.col[target_j])
+
+    fig = plt.figure(figsize=(17, 6))
+    gs = fig.add_gridspec(2, 3, height_ratios=[3.0, 1.0], width_ratios=[1.0, 1.0, 1.45])
+
+    ax_signal = fig.add_subplot(gs[:, 0])
+    finite_signal = np.isfinite(signal_values)
+    im_signal = ax_signal.scatter(
+        cube_data.x[finite_signal],
+        cube_data.y[finite_signal],
+        c=signal_values[finite_signal],
+        s=42,
+        marker="s",
+        cmap="gray_r",
+        linewidths=0.0,
+    )
+    ax_signal.scatter([tx], [ty], marker="*", s=220, facecolor="none", edgecolor="tab:red", linewidth=1.6)
+    ax_signal.set_title("Finding map: signal")
+    ax_signal.set_xlabel("X [arcsec]")
+    ax_signal.set_ylabel("Y [arcsec]")
+    ax_signal.set_aspect("equal")
+    fig.colorbar(im_signal, ax=ax_signal, fraction=0.046, pad=0.02)
+
+    ax_sigma = fig.add_subplot(gs[:, 1])
+    finite_sigma = np.isfinite(sigma_values)
+    im_sigma = ax_sigma.scatter(
+        cube_data.x[finite_sigma],
+        cube_data.y[finite_sigma],
+        c=sigma_values[finite_sigma],
+        s=42,
+        marker="s",
+        cmap="inferno",
+        linewidths=0.0,
+    )
+    ax_sigma.scatter([tx], [ty], marker="*", s=220, facecolor="none", edgecolor="cyan", linewidth=1.6)
+    ax_sigma.set_title("Finding map: sigma")
+    ax_sigma.set_xlabel("X [arcsec]")
+    ax_sigma.set_ylabel("Y [arcsec]")
+    ax_sigma.set_aspect("equal")
+    fig.colorbar(im_sigma, ax=ax_sigma, fraction=0.046, pad=0.02, label="km/s")
+
+    ax_fit = fig.add_subplot(gs[0, 2])
+    ax_resid = fig.add_subplot(gs[1, 2], sharex=ax_fit)
+    ax_fit.plot(cube_data.lam_gal_ang, galaxy, color="0.25", lw=0.8, label="Galaxy")
+    if result.bestfit is not None:
+        ax_fit.plot(cube_data.lam_gal_ang, result.bestfit, color="tab:blue", lw=1.0, label="pPXF/XSL")
+        resid = galaxy - result.bestfit
+        resid_scale = robust_sigma(resid[np.isfinite(resid)], zero=1)
+        if not np.isfinite(resid_scale) or resid_scale <= 0:
+            resid_scale = 1.0
+        ax_resid.plot(cube_data.lam_gal_ang, resid / resid_scale, color="0.25", lw=0.7)
+        ax_resid.axhline(0, color="k", lw=0.7)
+        ax_resid.axhline(3, color="0.5", ls="--", lw=0.6)
+        ax_resid.axhline(-3, color="0.5", ls="--", lw=0.6)
+        ax_resid.set_ylabel("Res./MAD")
+
+    ax_fit.set_title(
+        f"{label} | row={row}, col={col}, sigma={result.sigma:.1f} km/s, "
+        f"h3={result.h3:+.3f}, h4={result.h4:+.3f}, S/N={result.sn:.1f}"
+    )
+    ax_fit.set_ylabel("Flux")
+    ax_fit.legend(loc="best", frameon=False)
+    ax_resid.set_xlabel("Rest wavelength [Angstrom]")
+    fig.tight_layout()
+    fig.savefig(outpath, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def write_targeted_checkplots(
+    outdir: Path,
+    cube_data: CubeData,
+    maps: dict[str, np.ndarray],
+    table_rows: list[dict[str, object]],
+    global_template: np.ndarray,
+    lam_temp_template: np.ndarray,
+    resolution_info: ResolutionInfo,
+    cfg: Config,
+) -> dict[str, str]:
+    targets = select_target_spaxels(cube_data, table_rows, cfg.check_plot_radius_arcsec)
+    paths: dict[str, str] = {}
+    for label, j in targets.items():
+        galaxy = cube_data.spectra_log[:, j]
+        start_sigma = float(table_rows[j].get("sigma", cfg.start_sigma))
+        if not np.isfinite(start_sigma):
+            start_sigma = cfg.start_sigma
+        result = fit_spaxel_kinematics(
+            template=global_template,
+            lam_temp_template=lam_temp_template,
+            galaxy=galaxy,
+            valid_frac_log=cube_data.valid_frac_log[:, j],
+            cube_data=cube_data,
+            resolution_info=resolution_info,
+            cfg=cfg,
+            start_sigma=start_sigma,
+        )
+        outpath = outdir / f"xsl_check_{label.replace('.', 'p')}.png"
+        plot_target_fit_with_finding_maps(outpath, cube_data, maps, j, galaxy, result, label.replace("_", " "))
+        paths[label] = str(outpath)
+    return paths
+
+
 def plot_maps(outdir: Path, cube_data: CubeData, maps: dict[str, np.ndarray]) -> Path:
     extent = (
         cube_data.x.min() - 0.5 * cube_data.pixsize_arcsec,
@@ -990,7 +1148,7 @@ def save_fits_products(
     hdr["SIGINSMX"] = (float(resolution_info.sigma_inst_max_kms), "km/s")
     hdr["SIGTEMP"] = (float(resolution_info.sigma_template_kms), "km/s")
     hdr["SIGTEFF"] = (float(resolution_info.sigma_template_eff_kms), "km/s")
-    hdr["RTEMP"] = (float(resolution_info.template_r_eff), "Median E-MILES resolving power")
+    hdr["RTEMP"] = (float(resolution_info.template_r_eff), f"Median {cfg.sps_name.upper()} resolving power")
     hdr["TBROADD"] = int(resolution_info.template_broader_than_data)
     hdr["TBRFRAC"] = float(resolution_info.template_broader_fraction)
     hdr["LAMMIN"] = float(np.min(cube_data.lam_gal_ang[cube_data.fit_mask_log]))
@@ -1092,6 +1250,12 @@ def parse_args() -> Config:
     parser.add_argument("--min-goodpixels", type=int, default=180)
     parser.add_argument("--n-plot-spaxels", type=int, default=8)
     parser.add_argument("--csv-min-sn", type=float, default=10.0)
+    parser.add_argument(
+        "--check-plot-radius-arcsec",
+        type=float,
+        default=0.5,
+        help="Central radius used to select the highest-sigma diagnostic fit plot.",
+    )
 
     args = parser.parse_args()
     return Config(
@@ -1119,6 +1283,7 @@ def parse_args() -> Config:
         min_goodpixels=int(args.min_goodpixels),
         n_plot_spaxels=int(args.n_plot_spaxels),
         csv_min_sn=float(args.csv_min_sn),
+        check_plot_radius_arcsec=float(args.check_plot_radius_arcsec),
     )
 
 
@@ -1207,12 +1372,14 @@ def main() -> None:
             if result.goodpixels is not None and result.clean_mask is not None and np.count_nonzero(result.clean_mask) > 0
             else np.nan
         )
+        h3_ok = np.isfinite(result.h3) if cfg.moments >= 3 else True
+        h4_ok = np.isfinite(result.h4) if cfg.moments >= 4 else True
         goodfit = bool(
             result.ok
             and np.isfinite(result.losv_abs)
             and np.isfinite(result.sigma)
-            and np.isfinite(result.h3)
-            and np.isfinite(result.h4)
+            and h3_ok
+            and h4_ok
             and np.isfinite(result.sn)
             and result.sn >= cfg.csv_min_sn
             and result.sigma >= cfg.min_sigma
@@ -1269,6 +1436,16 @@ def main() -> None:
                 preview_done += 1
 
     plot_maps(outdir, cube_data, maps)
+    check_plot_paths = write_targeted_checkplots(
+        outdir=outdir,
+        cube_data=cube_data,
+        maps=maps,
+        table_rows=table_rows,
+        global_template=global_template,
+        lam_temp_template=np.asarray(sps.lam_temp, dtype=float),
+        resolution_info=resolution_info,
+        cfg=cfg,
+    )
 
     good_csv_rows = [
         {
@@ -1379,6 +1556,8 @@ def main() -> None:
         "min_goodpixels": cfg.min_goodpixels,
         "n_plot_spaxels": cfg.n_plot_spaxels,
         "csv_min_sn": cfg.csv_min_sn,
+        "check_plot_radius_arcsec": cfg.check_plot_radius_arcsec,
+        "targeted_checkplots": check_plot_paths,
     }
     json_path.write_text(json.dumps(config_dict, indent=2))
 
@@ -1401,9 +1580,9 @@ def main() -> None:
         f"Adopted resolving power median: {resolution_info.resolving_power_med:.1f}",
         f"Adopted instrumental sigma range: {resolution_info.sigma_inst_min_kms:.2f} to {resolution_info.sigma_inst_max_kms:.2f} km/s",
         f"Adopted instrumental sigma median: {resolution_info.sigma_inst_kms:.2f} km/s",
-        f"E-MILES template sigma: {resolution_info.sigma_template_kms:.2f} km/s",
+        f"{cfg.sps_name.upper()} native template sigma: {resolution_info.sigma_template_kms:.2f} km/s",
         f"Effective template sigma in fit: {resolution_info.sigma_template_eff_kms:.2f} km/s",
-        f"E-MILES effective resolving power: {resolution_info.template_r_eff:.1f}",
+        f"{cfg.sps_name.upper()} effective resolving power: {resolution_info.template_r_eff:.1f}",
         f"Template broader than data: {resolution_info.template_broader_than_data}",
         f"Template broader fraction: {resolution_info.template_broader_fraction:.3f}",
         f"Fitted systemic redshift: {systemic_redshift_fit:.9f}",
@@ -1413,6 +1592,8 @@ def main() -> None:
         f"CSV: {csv_path}",
         f"FITS: {fits_path}",
         f"NPZ: {npz_path}",
+        f"Check plot radius: {cfg.check_plot_radius_arcsec:.2f} arcsec",
+        *[f"Check plot {name}: {path}" for name, path in check_plot_paths.items()],
     ]
     summary_path.write_text("\n".join(summary_lines) + "\n")
 
