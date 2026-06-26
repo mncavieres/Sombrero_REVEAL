@@ -10,6 +10,8 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
+from reproducibility import write_reproduction_files
+
 
 LOSVD_XLIM = 1200.0
 MAP_ROTATION_DEG = -18.0
@@ -179,12 +181,28 @@ def main():
     print(f"losvd_plot={losvd}")
     print("top_bins=" + ",".join(str(i) for i in top))
     print("top_sigmas=" + ",".join(f"{s:.6g}" for s in sigmas))
+    output_paths = [kin, losvd]
     if args.central_radius is not None:
+        output_paths.append(central_losvd)
         print(f"central_radius_arcsec={args.central_radius:.6g}")
         print(f"central_bin_count={len(central)}")
         print(f"central_losvd_plot={central_losvd}")
         print("central_top_bins=" + ",".join(str(i) for i in central_top))
         print("central_top_sigmas=" + ",".join(f"{s:.6g}" for s in central_sigmas))
+    write_reproduction_files(
+        args.output_dir,
+        run_name=f"{args.results.stem}_checkplots",
+        input_paths=[args.results],
+        output_paths=output_paths,
+        extra={
+            "runner": "plot_ghfree_map.py",
+            "central_radius": args.central_radius,
+            "top_bins": [int(i) for i in top],
+            "top_sigmas": [float(s) for s in sigmas],
+        },
+        run_file_name="reproduce_checkplots.sh",
+        manifest_name="checkplots_run_manifest.json",
+    )
 
 
 if __name__ == "__main__":

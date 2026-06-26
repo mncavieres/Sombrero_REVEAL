@@ -13,6 +13,8 @@ import numpy as np
 from astropy.io import fits
 from scipy.interpolate import griddata
 
+from reproducibility import write_reproduction_files
+
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -22,6 +24,7 @@ MOMENTS = ("vel", "sigma", "h3", "h4")
 MAP_ROTATION_DEG = -18.0
 CUBE_FIT_RANGE_UM = (2.10, 2.398)
 CONTOUR_PERCENTILES = (50, 60, 70, 80, 88, 94, 97, 99)
+BAD_SIGMA_RADIUS_ARCSEC = 1.0
 
 
 def rotate_coordinates(x, y, angle_deg=MAP_ROTATION_DEG):
@@ -96,6 +99,13 @@ def percentile_limits(values, low=2.0, high=98.0):
     return float(lo), float(hi)
 
 
+def result_family(label, fit_type, regularization):
+    if regularization:
+        return "regularized"
+    text = " ".join(str(part).lower() for part in [label, fit_type, regularization] if part)
+    return "regularized" if "regularized" in text or "regularization" in text else "nonregularized"
+
+
 def interpolate_to_grid(x, y, values, grid_size=140, preferred_method="cubic"):
     good = np.isfinite(x) & np.isfinite(y) & np.isfinite(values)
     xi = np.linspace(np.nanmin(x[good]), np.nanmax(x[good]), grid_size)
@@ -118,6 +128,32 @@ def interpolate_to_grid(x, y, values, grid_size=140, preferred_method="cubic"):
     if last is None:
         last = np.full_like(xx, np.nan)
     return xi, yi, last
+
+
+def grid_and_stats_payload(x, y, values, grid_size):
+    values = np.asarray(values, dtype=float)
+    good = np.isfinite(values)
+    if not np.any(good):
+        return None, None
+
+    xi, yi, zz = interpolate_to_grid(x, y, values, grid_size=grid_size)
+    auto_lo = float(np.nanmin(values[good]))
+    auto_hi = float(np.nanmax(values[good]))
+    robust_lo, robust_hi = percentile_limits(values)
+    absmax = float(np.nanmax(np.abs(values[good])))
+    grid = {
+        "x": compact_array(xi, ndigits=6),
+        "y": compact_array(yi, ndigits=6),
+        "z": compact_array(zz, ndigits=6),
+        "nx": int(len(xi)),
+        "ny": int(len(yi)),
+    }
+    stats = {
+        "auto": [auto_lo, auto_hi],
+        "robust": [robust_lo, robust_hi],
+        "symmetric": [-absmax, absmax],
+    }
+    return grid, stats
 
 
 def science_cube_hdu(hdul):
@@ -339,6 +375,8 @@ def read_mge_overlay(mge_table: Path, extent, grid_size: int):
 def read_result(path: Path, label: str | None, grid_size: int):
     with h5py.File(path, "r") as handle:
         fit_type = str(handle.attrs.get("fit_type", path.parent.name)).strip() or path.parent.name
+        regularization = str(handle.attrs.get("regularization", "")).strip()
+        display_label = label or path.parent.name
         x_raw = np.asarray(handle["in/xbin"], dtype=float)
         y_raw = np.asarray(handle["in/ybin"], dtype=float)
         x, y = rotate_coordinates(x_raw, y_raw)
@@ -368,36 +406,35 @@ def read_result(path: Path, label: str | None, grid_size: int):
                 }
             )
 
+        radii = np.hypot(x_raw, y_raw)
+        sigma_values = moments["sigma"]
+        central = np.isfinite(sigma_values) & np.isfinite(radii) & (radii <= BAD_SIGMA_RADIUS_ARCSEC)
+        if np.any(central):
+            central_sigma_max = float(np.nanmax(sigma_values[central]))
+            bad_sigma = np.isfinite(sigma_values) & (sigma_values > central_sigma_max)
+        else:
+            central_sigma_max = np.nan
+            bad_sigma = np.zeros_like(sigma_values, dtype=bool)
+
+        for bin_record in bins:
+            bin_id = bin_record["id"]
+            bin_record["badSigma"] = bool(bad_sigma[bin_id]) if bin_id < len(bad_sigma) else False
+
         grids = {}
         stats = {}
+        masked_grids = {}
+        masked_stats = {}
         for key in MOMENTS:
             values = moments[key]
-            good = np.isfinite(values)
-            if not np.any(good):
-                grids[key] = None
-                stats[key] = None
-                continue
-            xi, yi, zz = interpolate_to_grid(x, y, values, grid_size=grid_size)
-            auto_lo = float(np.nanmin(values[good]))
-            auto_hi = float(np.nanmax(values[good]))
-            robust_lo, robust_hi = percentile_limits(values)
-            absmax = float(np.nanmax(np.abs(values[good])))
-            grids[key] = {
-                "x": compact_array(xi, ndigits=6),
-                "y": compact_array(yi, ndigits=6),
-                "z": compact_array(zz, ndigits=6),
-                "nx": int(len(xi)),
-                "ny": int(len(yi)),
-            }
-            stats[key] = {
-                "auto": [auto_lo, auto_hi],
-                "robust": [robust_lo, robust_hi],
-                "symmetric": [-absmax, absmax],
-            }
+            grids[key], stats[key] = grid_and_stats_payload(x, y, values, grid_size=grid_size)
+            clipped_values = np.where(bad_sigma, np.nan, values)
+            masked_grids[key], masked_stats[key] = grid_and_stats_payload(x, y, clipped_values, grid_size=grid_size)
 
         return {
-            "label": label or path.parent.name,
+            "label": display_label,
             "fitType": fit_type,
+            "family": result_family(display_label, fit_type, regularization),
+            "regularization": regularization or None,
             "source": str(path),
             "extent": [
                 float(np.nanmin(x)),
@@ -411,6 +448,14 @@ def read_result(path: Path, label: str | None, grid_size: int):
             "losvds": losvds,
             "grids": grids,
             "stats": stats,
+            "maskedGrids": masked_grids,
+            "maskedStats": masked_stats,
+            "badSigma": {
+                "radiusArcsec": BAD_SIGMA_RADIUS_ARCSEC,
+                "centralMax": finite_float(central_sigma_max),
+                "count": int(np.count_nonzero(bad_sigma)),
+                "bins": [int(idx) for idx in np.flatnonzero(bad_sigma)],
+            },
         }
 
 
@@ -471,8 +516,11 @@ h1 {{
   min-width: 0;
 }}
 .result-group {{ flex: 1 1 190px; }}
+.import-group {{ flex: 1 1 280px; }}
+.reg-group {{ flex: 0.9 1 230px; }}
 .moment-group {{ flex: 1.5 1 330px; }}
 .view-group {{ flex: 0.9 1 210px; }}
+.mask-group {{ flex: 0.9 1 260px; }}
 .overlay-group {{ flex: 1 1 260px; }}
 .limits-group {{ flex: 1.7 1 480px; }}
 label {{
@@ -499,6 +547,16 @@ select, input {{
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}}
+.import-row {{
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  gap: 6px;
+}}
+.import-status {{
+  margin-top: 5px;
+  min-height: 14px;
+  font-size: 12px;
 }}
 .checks {{
   min-height: 36px;
@@ -709,6 +767,22 @@ footer {{
     <label for="resultSelect">Result</label>
     <select id="resultSelect"></select>
   </div>
+  <div class="group import-group">
+    <label for="mapFileInput">Import Maps</label>
+    <div class="import-row">
+      <input id="mapFileInput" type="file" accept=".json,.csv,application/json,text/csv" multiple>
+      <button type="button" id="schemaBtn">CSV</button>
+    </div>
+    <div class="status import-status" id="importStatus"></div>
+  </div>
+  <div class="group reg-group">
+    <label>Regularization</label>
+    <div class="segmented" id="familyButtons">
+      <button type="button" data-family="all" class="active">All</button>
+      <button type="button" data-family="nonregularized">Non-reg</button>
+      <button type="button" data-family="regularized">Regularized</button>
+    </div>
+  </div>
   <div class="group moment-group">
     <label>Moment</label>
     <div class="segmented" id="momentButtons"></div>
@@ -718,6 +792,12 @@ footer {{
     <div class="segmented" id="viewButtons">
       <button type="button" data-view="bins" class="active">Bins</button>
       <button type="button" data-view="interp">Interpolated</button>
+    </div>
+  </div>
+  <div class="group mask-group">
+    <label>Bad Pixels</label>
+    <div class="inline checks">
+      <label class="check"><input id="badSigmaToggle" type="checkbox"> Sigma edge outliers</label>
     </div>
   </div>
   <div class="group overlay-group">
@@ -789,8 +869,10 @@ const palette = ["#0f766e", "#b6465f", "#2f5aa8", "#c27418", "#6f4aa7", "#54733c
 const LOSVD_X_LIMIT = 1200;
 const state = {{
   result: 0,
+  family: "all",
   moment: "vel",
   view: "bins",
+  maskBadSigma: false,
   showMge: false,
   showImageContours: false,
   selected: [],
@@ -801,8 +883,10 @@ const state = {{
 }};
 
 const resultSelect = document.getElementById("resultSelect");
+const familyButtons = document.getElementById("familyButtons");
 const momentButtons = document.getElementById("momentButtons");
 const viewButtons = document.getElementById("viewButtons");
+const badSigmaToggle = document.getElementById("badSigmaToggle");
 const mgeToggle = document.getElementById("mgeToggle");
 const imageIsoToggle = document.getElementById("imageIsoToggle");
 const vminInput = document.getElementById("vminInput");
@@ -823,9 +907,49 @@ const clearBtn = document.getElementById("clearBtn");
 const selectedChips = document.getElementById("selectedChips");
 const losvdStatus = document.getElementById("losvdStatus");
 const footer = document.getElementById("dashboardFooter");
+const mapFileInput = document.getElementById("mapFileInput");
+const schemaBtn = document.getElementById("schemaBtn");
+const importStatus = document.getElementById("importStatus");
 
 function currentResult() {{
   return DATA.results[state.result];
+}}
+
+function resultFamily(result) {{
+  return result.family || "nonregularized";
+}}
+
+function filteredResultIndexes() {{
+  const indexes = DATA.results
+    .map((result, idx) => (state.family === "all" || resultFamily(result) === state.family ? idx : null))
+    .filter((idx) => idx !== null);
+  return indexes.length ? indexes : DATA.results.map((_, idx) => idx);
+}}
+
+function badSigmaBins(result) {{
+  return new Set(result.badSigma?.bins || []);
+}}
+
+function badSigmaInfo(result) {{
+  const info = result.badSigma || {{}};
+  return {{
+    count: info.count || 0,
+    radius: info.radiusArcsec,
+    centralMax: info.centralMax
+  }};
+}}
+
+function maskedValues(result, values) {{
+  if (!state.maskBadSigma || state.moment === "image") return values;
+  const bad = badSigmaBins(result);
+  return values.map((value, idx) => (bad.has(idx) ? null : value));
+}}
+
+function currentGrid(result) {{
+  if (state.maskBadSigma && state.moment !== "image") {{
+    return result.maskedGrids?.[state.moment] || result.grids[state.moment];
+  }}
+  return result.grids[state.moment];
 }}
 
 function momentInfo(key = state.moment) {{
@@ -896,7 +1020,10 @@ function colorFor(value, cmap, vmin, vmax) {{
 }}
 
 function defaultLimits(mode = "robust") {{
-  const stats = state.moment === "image" ? DATA.image?.stats : currentResult().stats[state.moment];
+  const result = currentResult();
+  const stats = state.moment === "image"
+    ? DATA.image?.stats
+    : (state.maskBadSigma ? result.maskedStats?.[state.moment] : result.stats[state.moment]);
   if (!stats) return [0, 1];
   const pair = stats[mode] || stats.robust || stats.auto;
   if (!pair || pair[0] === null || pair[1] === null || pair[1] <= pair[0]) return [0, 1];
@@ -921,17 +1048,372 @@ function resetLimits(mode) {{
 
 function hasMoment(result, key) {{
   if (key === "image") return Boolean(DATA.image && DATA.image.grid);
-  const stats = result.stats[key];
+  const stats = result.stats?.[key];
   return Boolean(stats);
 }}
 
-function initControls() {{
-  DATA.results.forEach((result, idx) => {{
+function toFiniteNumber(value) {{
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}}
+
+function normalizeColumnName(name) {{
+  return String(name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}}
+
+function findColumn(headers, aliases) {{
+  const normalized = headers.map(normalizeColumnName);
+  for (const alias of aliases) {{
+    const idx = normalized.indexOf(normalizeColumnName(alias));
+    if (idx >= 0) return headers[idx];
+  }}
+  return null;
+}}
+
+function parseCsvLine(line) {{
+  const values = [];
+  let current = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i += 1) {{
+    const char = line[i];
+    if (char === '"') {{
+      if (quoted && line[i + 1] === '"') {{
+        current += '"';
+        i += 1;
+      }} else {{
+        quoted = !quoted;
+      }}
+    }} else if (char === "," && !quoted) {{
+      values.push(current.trim());
+      current = "";
+    }} else {{
+      current += char;
+    }}
+  }}
+  values.push(current.trim());
+  return values;
+}}
+
+function parseCsvTable(text) {{
+  const lines = text.split(/\\r?\\n/).filter((line) => line.trim() && !line.trim().startsWith("#"));
+  if (!lines.length) throw new Error("CSV file is empty");
+  const headers = parseCsvLine(lines[0]);
+  return lines.slice(1).map((line) => {{
+    const values = parseCsvLine(line);
+    const row = {{}};
+    headers.forEach((header, idx) => {{
+      row[header] = values[idx] ?? "";
+    }});
+    return row;
+  }});
+}}
+
+function percentile(values, p) {{
+  const finite = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+  if (!finite.length) return null;
+  const pos = (finite.length - 1) * p / 100;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  if (lo === hi) return finite[lo];
+  return finite[lo] + (finite[hi] - finite[lo]) * (pos - lo);
+}}
+
+function statsForValues(values) {{
+  const finite = values.filter((value) => Number.isFinite(value));
+  if (!finite.length) return null;
+  const lo = Math.min(...finite);
+  const hi = Math.max(...finite);
+  const robustLo = percentile(finite, 2);
+  const robustHi = percentile(finite, 98);
+  const absmax = Math.max(...finite.map((value) => Math.abs(value)));
+  return {{
+    auto: [lo, hi > lo ? hi : lo + 1],
+    robust: robustHi !== null && robustLo !== null && robustHi > robustLo ? [robustLo, robustHi] : [lo, hi > lo ? hi : lo + 1],
+    symmetric: [-absmax, absmax > 0 ? absmax : 1]
+  }};
+}}
+
+function interpolateImportedGrid(bins, values, extent, gridSize) {{
+  const points = bins
+    .map((bin, idx) => (bin && Number.isFinite(bin.x) && Number.isFinite(bin.y) && Number.isFinite(values[idx])
+      ? [bin.x, bin.y, values[idx]]
+      : null))
+    .filter(Boolean);
+  if (points.length < 1) return null;
+
+  const [xmin, xmax, ymin, ymax] = extent;
+  const nx = Math.max(18, Math.min(160, Number(gridSize) || 120));
+  const ny = nx;
+  const xs = Array.from({{length: nx}}, (_, i) => xmin + (xmax - xmin) * i / Math.max(1, nx - 1));
+  const ys = Array.from({{length: ny}}, (_, i) => ymin + (ymax - ymin) * i / Math.max(1, ny - 1));
+  const z = [];
+  const maxPoints = 18;
+  for (const yy of ys) {{
+    for (const xx of xs) {{
+      const nearest = points
+        .map(([px, py, value]) => {{
+          const d2 = (px - xx) ** 2 + (py - yy) ** 2;
+          return [d2, value];
+        }})
+        .sort((a, b) => a[0] - b[0])
+        .slice(0, maxPoints);
+      if (!nearest.length) {{
+        z.push(null);
+        continue;
+      }}
+      if (nearest[0][0] < 1e-12) {{
+        z.push(nearest[0][1]);
+        continue;
+      }}
+      let num = 0;
+      let den = 0;
+      nearest.forEach(([d2, value]) => {{
+        const weight = 1 / Math.max(d2, 1e-8);
+        num += weight * value;
+        den += weight;
+      }});
+      z.push(den > 0 ? num / den : null);
+    }}
+  }}
+  return {{
+    x: xs,
+    y: ys,
+    z,
+    nx,
+    ny
+  }};
+}}
+
+function computeBadSigmaForResult(result) {{
+  const sigma = result.moments?.sigma || [];
+  const central = result.bins
+    .filter((bin, idx) => bin && Number.isFinite(sigma[idx]) && Number.isFinite(bin.r) && bin.r <= 1.0)
+    .map((bin) => sigma[bin.id]);
+  if (!central.length) {{
+    result.badSigma = {{radiusArcsec: 1.0, centralMax: null, count: 0, bins: []}};
+    result.bins.forEach((bin) => {{ if (bin) bin.badSigma = false; }});
+    return;
+  }}
+  const centralMax = Math.max(...central);
+  const bad = [];
+  result.bins.forEach((bin, idx) => {{
+    const flag = Boolean(bin && Number.isFinite(sigma[idx]) && sigma[idx] > centralMax);
+    if (bin) bin.badSigma = flag;
+    if (flag) bad.push(idx);
+  }});
+  result.badSigma = {{radiusArcsec: 1.0, centralMax, count: bad.length, bins: bad}};
+}}
+
+function rebuildDerivedMaps(result) {{
+  const finiteBins = result.bins.filter((bin) => bin && Number.isFinite(bin.x) && Number.isFinite(bin.y));
+  const extent = result.extent || [
+    Math.min(...finiteBins.map((bin) => bin.x)),
+    Math.max(...finiteBins.map((bin) => bin.x)),
+    Math.min(...finiteBins.map((bin) => bin.y)),
+    Math.max(...finiteBins.map((bin) => bin.y))
+  ];
+  result.extent = extent;
+  result.grids = result.grids || {{}};
+  result.stats = result.stats || {{}};
+  result.maskedGrids = result.maskedGrids || {{}};
+  result.maskedStats = result.maskedStats || {{}};
+  computeBadSigmaForResult(result);
+
+  moments.filter((m) => m.key !== "image").forEach((moment) => {{
+    const values = result.moments?.[moment.key] || [];
+    if (!values.some((value) => Number.isFinite(value))) {{
+      result.stats[moment.key] = null;
+      result.grids[moment.key] = null;
+      result.maskedStats[moment.key] = null;
+      result.maskedGrids[moment.key] = null;
+      return;
+    }}
+    result.stats[moment.key] = result.stats[moment.key] || statsForValues(values);
+    result.grids[moment.key] = result.grids[moment.key] || interpolateImportedGrid(result.bins, values, extent, DATA.gridSize || 120);
+    const masked = values.map((value, idx) => (result.bins[idx]?.badSigma ? null : value));
+    result.maskedStats[moment.key] = statsForValues(masked);
+    result.maskedGrids[moment.key] = interpolateImportedGrid(result.bins, masked, extent, DATA.gridSize || 120);
+  }});
+}}
+
+function normalizeImportedResult(input, fallbackLabel, source) {{
+  if (!input || !Array.isArray(input.bins) || !input.bins.length) {{
+    throw new Error("JSON result must contain a non-empty bins array");
+  }}
+  const result = {{
+    label: input.label || fallbackLabel,
+    fitType: input.fitType || "Imported map",
+    family: input.family || "nonregularized",
+    regularization: input.regularization || null,
+    source: input.source || source || fallbackLabel,
+    extent: input.extent || null,
+    xvel: input.xvel || [],
+    bins: [],
+    moments: {{}},
+    losvds: input.losvds || {{}},
+    grids: input.grids || {{}},
+    stats: input.stats || {{}},
+    maskedGrids: input.maskedGrids || {{}},
+    maskedStats: input.maskedStats || {{}},
+    badSigma: input.badSigma || null
+  }};
+  moments.filter((m) => m.key !== "image").forEach((moment) => {{
+    const sourceValues = input.moments?.[moment.key] || [];
+    result.moments[moment.key] = input.bins.map((_, idx) => toFiniteNumber(sourceValues[idx]));
+  }});
+  result.bins = input.bins.map((bin, idx) => {{
+    const x = toFiniteNumber(bin.x);
+    const y = toFiniteNumber(bin.y);
+    return {{
+      id: idx,
+      sourceId: bin.sourceId ?? bin.id ?? idx,
+      x,
+      y,
+      r: toFiniteNumber(bin.r) ?? (Number.isFinite(x) && Number.isFinite(y) ? Math.hypot(x, y) : null),
+      snr: toFiniteNumber(bin.snr),
+      badSigma: Boolean(bin.badSigma)
+    }};
+  }});
+  rebuildDerivedMaps(result);
+  return result;
+}}
+
+function resultFromCsv(text, filename) {{
+  const rows = parseCsvTable(text);
+  const headers = rows.length ? Object.keys(rows[0]) : [];
+  const xCol = findColumn(headers, ["xrot", "xrotarcsec", "xrotarcseconds", "x_rot", "x_rot_arcsec", "x", "xarcsec", "x_arcsec"]);
+  const yCol = findColumn(headers, ["yrot", "yrotarcsec", "yrotarcseconds", "y_rot", "y_rot_arcsec", "y", "yarcsec", "y_arcsec"]);
+  if (!xCol || !yCol) throw new Error("CSV needs x/y map coordinates");
+  const snrCol = findColumn(headers, ["snr", "s/n", "signaltonoise"]);
+  const momentColumns = {{
+    vel: findColumn(headers, ["vel", "velocity", "v", "meanvelocity"]),
+    sigma: findColumn(headers, ["sigma", "dispersion", "sig"]),
+    h3: findColumn(headers, ["h3", "skew", "skewness"]),
+    h4: findColumn(headers, ["h4", "kurt", "kurtosis"])
+  }};
+  const bins = [];
+  const values = {{vel: [], sigma: [], h3: [], h4: []}};
+  rows.forEach((row) => {{
+    const x = toFiniteNumber(row[xCol]);
+    const y = toFiniteNumber(row[yCol]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const id = bins.length;
+    bins.push({{
+      id,
+      x,
+      y,
+      r: Math.hypot(x, y),
+      snr: snrCol ? toFiniteNumber(row[snrCol]) : null,
+      badSigma: false
+    }});
+    Object.keys(values).forEach((key) => {{
+      const col = momentColumns[key];
+      values[key].push(col ? toFiniteNumber(row[col]) : null);
+    }});
+  }});
+  if (!bins.length) throw new Error("CSV did not contain finite x/y rows");
+  const result = {{
+    label: filename.replace(/\\.[^.]+$/, ""),
+    fitType: "Imported CSV map",
+    family: "nonregularized",
+    regularization: null,
+    source: filename,
+    bins,
+    moments: values,
+    losvds: {{}},
+    xvel: []
+  }};
+  rebuildDerivedMaps(result);
+  return result;
+}}
+
+function resultsFromJson(text, filename) {{
+  const parsed = JSON.parse(text);
+  const rawResults = Array.isArray(parsed)
+    ? parsed
+    : (Array.isArray(parsed.results) ? parsed.results : [parsed]);
+  return rawResults.map((result, idx) => normalizeImportedResult(
+    result,
+    rawResults.length === 1 ? filename.replace(/\\.[^.]+$/, "") : `${{filename.replace(/\\.[^.]+$/, "")}} ${{idx + 1}}`,
+    filename
+  ));
+}}
+
+async function importMapFiles(files) {{
+  const imported = [];
+  for (const file of files) {{
+    const text = await file.text();
+    const name = file.name || "imported_map";
+    const lower = name.toLowerCase();
+    const results = lower.endsWith(".json")
+      ? resultsFromJson(text, name)
+      : [resultFromCsv(text, name)];
+    imported.push(...results);
+  }}
+  if (!imported.length) return;
+  DATA.results.push(...imported);
+  state.family = "all";
+  state.result = DATA.results.length - imported.length;
+  state.selected = [];
+  state.active = null;
+  if (!hasMoment(currentResult(), state.moment)) {{
+    const firstAvailable = moments.find((moment) => moment.key !== "image" && hasMoment(currentResult(), moment.key));
+    state.moment = firstAvailable ? firstAvailable.key : "vel";
+  }}
+  updateFamilyButtons();
+  updateResultOptions();
+  updateMomentButtons();
+  resetLimits(state.moment === "sigma" ? "robust" : "symmetric");
+  importStatus.textContent = `Loaded ${{imported.length}} map${{imported.length === 1 ? "" : "s"}}`;
+}}
+
+function downloadCsvTemplate() {{
+  const text = "x,y,vel,sigma,h3,h4,snr\\n0,0,0,250,0,0,100\\n0.1,0,25,245,0.02,-0.03,90\\n";
+  const blob = new Blob([text], {{type: "text/csv"}});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "dashboard_map_import_template.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+}}
+
+function updateResultOptions() {{
+  const allowed = filteredResultIndexes();
+  if (!allowed.includes(state.result)) {{
+    state.result = allowed[0];
+  }}
+  resultSelect.innerHTML = "";
+  allowed.forEach((idx) => {{
+    const result = DATA.results[idx];
     const option = document.createElement("option");
     option.value = String(idx);
-    option.textContent = result.label;
+    option.textContent = `${{result.label}}${{resultFamily(result) === "regularized" ? " [reg]" : ""}}`;
     resultSelect.appendChild(option);
   }});
+  resultSelect.value = String(state.result);
+}}
+
+function updateFamilyButtons() {{
+  familyButtons.querySelectorAll("button").forEach((button) => {{
+    button.classList.toggle("active", button.dataset.family === state.family);
+  }});
+}}
+
+function filterSelectedBadBins() {{
+  if (!state.maskBadSigma) return;
+  const result = currentResult();
+  const bad = badSigmaBins(result);
+  state.selected = state.selected.filter((id) => !bad.has(id));
+  if (state.active !== null && bad.has(state.active)) {{
+    state.active = state.selected.length ? state.selected[state.selected.length - 1] : null;
+  }}
+}}
+
+function initControls() {{
+  updateResultOptions();
 
   moments.forEach((m) => {{
     const button = document.createElement("button");
@@ -948,12 +1430,29 @@ function initControls() {{
     momentButtons.appendChild(button);
   }});
 
+  familyButtons.querySelectorAll("button").forEach((button) => {{
+    button.addEventListener("click", () => {{
+      state.family = button.dataset.family;
+      updateFamilyButtons();
+      updateResultOptions();
+      updateMomentButtons();
+      resetLimits(state.moment === "sigma" || state.moment === "image" ? "robust" : "symmetric");
+    }});
+  }});
+
   viewButtons.querySelectorAll("button").forEach((button) => {{
     button.addEventListener("click", () => {{
       state.view = button.dataset.view;
       viewButtons.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === button));
       render();
     }});
+  }});
+
+  badSigmaToggle.checked = state.maskBadSigma;
+  badSigmaToggle.addEventListener("change", () => {{
+    state.maskBadSigma = badSigmaToggle.checked;
+    filterSelectedBadBins();
+    resetLimits(state.moment === "sigma" || state.moment === "image" ? "robust" : "symmetric");
   }});
 
   const mgeAvailable = Boolean(DATA.mge && DATA.mge.contours && DATA.mge.contours.length);
@@ -976,6 +1475,7 @@ function initControls() {{
     if (!hasMoment(currentResult(), state.moment)) {{
       state.moment = hasMoment(currentResult(), "vel") ? "vel" : Object.keys(currentResult().stats).find((k) => currentResult().stats[k]);
     }}
+    filterSelectedBadBins();
     updateMomentButtons();
     resetLimits(state.moment === "sigma" ? "robust" : "symmetric");
   }});
@@ -994,6 +1494,19 @@ function initControls() {{
     state.active = null;
     render();
   }});
+  mapFileInput.addEventListener("change", async () => {{
+    const files = Array.from(mapFileInput.files || []);
+    if (!files.length) return;
+    importStatus.textContent = "Loading...";
+    try {{
+      await importMapFiles(files);
+    }} catch (error) {{
+      importStatus.textContent = `Import failed: ${{error.message}}`;
+    }} finally {{
+      mapFileInput.value = "";
+    }}
+  }});
+  schemaBtn.addEventListener("click", downloadCsvTemplate);
 
   mapCanvas.addEventListener("click", handleMapClick);
   window.addEventListener("resize", render);
@@ -1090,8 +1603,9 @@ function drawGrid(ctx, grid, info, plot) {{
 }}
 
 function drawInterpolated(ctx, result, values, info, plot) {{
-  drawGrid(ctx, result.grids[state.moment], info, plot);
+  drawGrid(ctx, currentGrid(result), info, plot);
   result.bins.forEach((bin) => {{
+    if (state.maskBadSigma && bin.badSigma) return;
     const px = xScale(bin.x, plot);
     const py = yScale(bin.y, plot);
     ctx.fillStyle = "rgba(18, 28, 32, 0.25)";
@@ -1103,7 +1617,9 @@ function drawInterpolated(ctx, result, values, info, plot) {{
 
 function drawBins(ctx, result, values, info, plot) {{
   result.bins.forEach((bin) => {{
+    if (state.maskBadSigma && bin.badSigma) return;
     const value = values[bin.id];
+    if (!Number.isFinite(value)) return;
     const px = xScale(bin.x, plot);
     const py = yScale(bin.y, plot);
     ctx.fillStyle = colorFor(value, info.cmap, state.vmin, state.vmax);
@@ -1120,6 +1636,7 @@ function drawSelection(ctx, result, plot) {{
   state.selected.forEach((id, idx) => {{
     const bin = result.bins[id];
     if (!bin) return;
+    if (state.maskBadSigma && bin.badSigma) return;
     const px = xScale(bin.x, plot);
     const py = yScale(bin.y, plot);
     ctx.strokeStyle = palette[idx % palette.length];
@@ -1191,7 +1708,7 @@ function drawMap() {{
   const result = currentResult();
   const info = momentInfo();
   const isImage = state.moment === "image" && DATA.image;
-  const values = isImage ? DATA.image.values : result.moments[state.moment];
+  const values = isImage ? DATA.image.values : maskedValues(result, result.moments[state.moment]);
   const {{ctx, width, height}} = setupCanvas(mapCanvas);
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = "#ffffff";
@@ -1289,6 +1806,7 @@ function handleMapClick(event) {{
   let best = null;
   let bestD2 = Infinity;
   result.bins.forEach((bin) => {{
+    if (state.maskBadSigma && bin.badSigma) return;
     const px = xScale(bin.x, plot);
     const py = yScale(bin.y, plot);
     const d2 = (px - sx) ** 2 + (py - sy) ** 2;
@@ -1303,6 +1821,7 @@ function handleMapClick(event) {{
 function selectBin(id, additive = true) {{
   const result = currentResult();
   if (!Number.isInteger(id) || id < 0 || id >= result.bins.length) return;
+  if (state.maskBadSigma && result.bins[id]?.badSigma) return;
   state.active = id;
   if (additive && !state.selected.includes(id)) {{
     state.selected.push(id);
@@ -1447,12 +1966,15 @@ function drawLosvd() {{
 }}
 
 function render() {{
+  updateResultOptions();
+  updateFamilyButtons();
+  badSigmaToggle.checked = state.maskBadSigma;
   const result = currentResult();
   const info = momentInfo();
   const isImage = state.moment === "image" && DATA.image;
   resultSelect.value = String(state.result);
   updateMomentButtons();
-  sourceStatus.textContent = result.fitType;
+  sourceStatus.textContent = `${{result.fitType}}${{resultFamily(result) === "regularized" ? " regularized" : ""}}`;
   mapTitle.textContent = `${{info.label}} map`;
   const overlayText = [
     state.showMge && DATA.mge ? "MGE" : null,
@@ -1461,7 +1983,13 @@ function render() {{
   const baseStatus = isImage
     ? `median IFU image, peak-centered at spaxel (${{DATA.image.center.col}}, ${{DATA.image.center.row}})`
     : `${{state.view === "interp" ? "cubic interpolated" : "bin centers"}}`;
-  mapStatus.textContent = overlayText ? `${{baseStatus}}; overlays: ${{overlayText}}` : baseStatus;
+  const badInfo = badSigmaInfo(result);
+  const maskText = state.maskBadSigma && state.moment !== "image"
+    ? `masked ${{badInfo.count}} bins with sigma > ${{formatValue(badInfo.centralMax, "km/s")}} inside r <= ${{badInfo.radius}} arcsec`
+    : "";
+  mapStatus.textContent = [baseStatus, maskText, overlayText ? `overlays: ${{overlayText}}` : ""]
+    .filter(Boolean)
+    .join("; ");
   const sources = DATA.results.map((r) => r.source);
   if (DATA.image?.source) sources.push(DATA.image.source);
   if (DATA.mge?.source) sources.push(DATA.mge.source);
@@ -1529,6 +2057,24 @@ def main():
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(html_template(payload), encoding="utf-8")
+    write_reproduction_files(
+        args.output.parent,
+        run_name=args.output.stem,
+        input_paths=[
+            *(Path(entry[0]) for entry in args.results),
+            args.cube,
+            args.mge_table,
+        ],
+        output_paths=[args.output],
+        extra={
+            "runner": "build_kinematics_dashboard.py",
+            "grid_size": args.grid_size,
+            "image_grid_size": args.image_grid_size,
+            "result_labels": [result["label"] for result in results],
+        },
+        run_file_name=f"{args.output.stem}_reproduce.sh",
+        manifest_name=f"{args.output.stem}_run_manifest.json",
+    )
     print(args.output)
 
 

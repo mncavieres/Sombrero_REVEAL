@@ -1,0 +1,33 @@
+# SSH commands
+ssh -v -Y -J macavieres@gate1.mpcdf.mpg.de macavieres@<IP>
+
+ssh -v -Y -J macavieres@gate2.mpcdf.mpg.de macavieres@<IP>
+
+# Name IP
+Shared-GPU-01-A100 10.186.2.38
+Shared-GPU-02-A100 10.186.2.183
+Shared-GPU-01-H100 10.186.3.57
+Shared-GPU-02-H100 10.186.3.206
+Node-01 10.186.3.99
+Node-02 10.186.3.34
+Node-03 10.186.2.19
+Node-04 10.186.2.164
+Node-05 10.186.2.29
+Node-06 10.186.1.129
+Node-07 10.186.2.245
+Node-08 10.186.2.68
+Node-09 10.186.3.22
+Node-10 10.186.3.203
+Node-11 10.186.2.201
+Node-12 10.186.2.34
+Node-13 10.186.1.144
+GPU Nodes:
+H100: Shared-GPU-01-H100, Shared-GPU-02-H100
+A100: Shared-GPU-01-A100, Shared-GPU-02-A100
+Astronodes:
+Node-01, Node-02, Node-03, Node-04, Node-05, Node-06, Node-07, Node-08,
+Node-09, Node-10, Node-11, Node-12, Node-13
+
+# Path for everything; DO NOT USE HOME DIR
+/nexus/posix0/MIA-astro-env/nneum/macavieres
+

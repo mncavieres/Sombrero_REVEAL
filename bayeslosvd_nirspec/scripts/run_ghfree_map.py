@@ -13,6 +13,8 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+from reproducibility import write_reproduction_files
+
 
 def _five_row(value):
     arr = np.asarray(value, dtype=float)
@@ -184,6 +186,17 @@ def main():
     if args.output.exists() and args.restart:
         args.output.unlink()
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    reproduction_kwargs = {
+        "run_name": args.output.stem,
+        "input_paths": [args.preproc, args.model_cache, args.init_result],
+        "output_paths": [args.output],
+        "extra": {
+            "runner": "run_ghfree_map.py",
+            "fit_type": args.fit_type,
+            "model_cache": str(args.model_cache),
+        },
+    }
+    run_file, manifest_file = write_reproduction_files(args.output.parent, **reproduction_kwargs)
 
     with args.model_cache.open("rb") as handle:
         model = pickle.load(handle)
@@ -195,6 +208,8 @@ def main():
         out.attrs["fit_type"] = args.fit_type
         out.attrs["fit_mode"] = "MAP optimization"
         out.attrs["optimizer_iter"] = args.iter
+        out.attrs["reproduce_script"] = str(run_file)
+        out.attrs["run_manifest"] = str(manifest_file)
         out_group = out.require_group("out")
         common = _load_common(preproc)
         nbins = int(_as_scalar(preproc["in/nbins"]))
@@ -236,6 +251,8 @@ def main():
 
                 if (bin_id + 1) % 25 == 0 or bin_id == nbins - 1:
                     print(f"completed {bin_id + 1}/{nbins} bins", flush=True)
+
+    write_reproduction_files(args.output.parent, **reproduction_kwargs)
 
 
 if __name__ == "__main__":

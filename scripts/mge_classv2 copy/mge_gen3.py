@@ -12,11 +12,6 @@ from scipy.ndimage import gaussian_filter
 import astropy.units as u 
 from scipy.special import i0e, erf
 
-try:
-    from mge_fit_sectors_regularized import mge_fit_sectors_regularized
-except ImportError:
-    mge_fit_sectors_regularized = None
-
 
 ARCSEC_TO_RAD = np.deg2rad(1.0 / 3600.0)
 PC_TO_M = 3.085677581491367e16
@@ -615,7 +610,6 @@ class MGEFitter:
         linear=True,
         ngauss=900,
         qbounds=None,
-        regularized=False,
         outer_slope=4,
         plot=True,
         quiet=False,
@@ -655,7 +649,6 @@ class MGEFitter:
         self.linear = linear
         self.ngauss = ngauss
         self.qbounds = qbounds
-        self.regularized = regularized
         self.outer_slope = outer_slope
         self.plot = plot
         self.quiet = quiet
@@ -1337,17 +1330,7 @@ class MGEFitter:
         s = self.sectors_result
 
         def _do_fit():
-            if self.regularized:
-                if mge_fit_sectors_regularized is None:
-                    raise ImportError(
-                        "regularized=True requires mge_fit_sectors_regularized.py "
-                        "to be importable from scripts/mge_classv2."
-                    )
-                fit_sectors = mge_fit_sectors_regularized
-            else:
-                fit_sectors = mge.fit_sectors
-
-            return fit_sectors(
+            return mge.fit_sectors(
                 s.radius, s.angle, s.counts, self.eps,
                 linear=self.linear,
                 ngauss=self.ngauss,
@@ -1389,17 +1372,6 @@ class MGEFitter:
                         "theta_deg": self._manual_theta,
                     },
                     "deprojection_config": self._deprojection_config,
-                    "fit_config": {
-                        "regularized": self.regularized,
-                        "linear": self.linear,
-                        "ngauss": self.ngauss,
-                        "qbounds": self.qbounds,
-                        "outer_slope": self.outer_slope,
-                        "sigmapsf": self.sigmapsf,
-                        "normpsf": self.normpsf,
-                        "allow_negative": self.allow_negative,
-                        "bulge_disk": self.bulge_disk,
-                    },
                     "sectors_result": self.sectors_result,
                     "fit_result": self.fit_result,
                 }
@@ -2121,17 +2093,6 @@ class MGEFitter:
             "mgefit": self.fit_result,
             "table_cols": ["surf_counts_per_pix", "sigma_pix", "sigma_arcsec", "q_obs", "total_counts"],
             "table": table,
-            "fit_config": {
-                "regularized": self.regularized,
-                "linear": self.linear,
-                "ngauss": self.ngauss,
-                "qbounds": self.qbounds,
-                "outer_slope": self.outer_slope,
-                "sigmapsf": self.sigmapsf,
-                "normpsf": self.normpsf,
-                "allow_negative": self.allow_negative,
-                "bulge_disk": self.bulge_disk,
-            },
             "deprojection_config": self._deprojection_config,
             "checkplot_dir": self.checkplot_dir,
             "cache_dir": self.cache_dir,
