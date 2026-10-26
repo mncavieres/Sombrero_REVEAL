@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DYNAMITE Run Explorer</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#/">DYNAMITE Run Explorer</a>
+  <nav>
+    <a href="#/" data-nav="overview">Runs</a>
+    <a href="#/compare" data-nav="compare">Compare</a>
+  </nav>
+  <span class="spacer"></span>
+  <span class="muted small" id="manifest-info"></span>
+  <button class="ghost" id="theme-toggle" title="Toggle light/dark">◐</button>
+</header>
+<main id="app"><p class="muted">Loading…</p></main>
+<div id="tooltip" class="tooltip" hidden></div>
+<script>
+  // run data files call DYNX.add / DYNX.manifest when loaded
+  window.DYNX = {runs: {}, manifestData: null, _wait: {},
+    add(d) { this.runs[d.name] = d; (this._wait[d.name] || []).forEach(f => f(d)); delete this._wait[d.name]; },
+    manifest(m) { this.manifestData = m; }};
+</script>
+<script src="data/manifest.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

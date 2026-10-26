@@ -189,3 +189,6 @@ Data/MAST_2026-02-16T1301/.DS_Store
 dynamite/
 *.key
 *.npz
+
+# DYNAMITE explorer: extracted run data, regenerate with scripts/dynamite_explorer/sync.sh
+dynamite_explorer/data/
