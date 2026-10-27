@@ -30,6 +30,7 @@ const fmt = (v, d = 3) => {
   if (a !== 0 && (a >= 1e5 || a < 1e-3)) return v.toExponential(2);
   return (+v.toFixed(d)).toString();
 };
+const pct = f => { const v = 100 * f; return v >= 0.1 || v === 0 ? v.toFixed(2) : v.toExponential(1); };
 const fmtChi = v => (v == null || !isFinite(v)) ? '–' : v.toFixed(1);
 const log10 = Math.log10;
 
@@ -970,6 +971,7 @@ function tabOrbits3d(run, body) {
   const overlay = h('div', {class: 'overlay'});
   const legend = h('div', {class: 'legend3d'});
   sceneEl.append(overlay, legend);
+  sceneEl.three = {};  // three.js handles, for debugging from the console
   const listEl = h('div', {class: 'tablewrap'});
   const numIn = h('input', {type: 'range', min: 1, max: orbits.length, value: state.n, oninput: e => { state.n = +e.target.value; nLbl.textContent = state.n; rebuild(); }});
   const nLbl = h('span', {}, state.n);
@@ -1011,6 +1013,8 @@ function tabOrbits3d(run, body) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, 1, 0.001, 1e6);
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  Object.assign(sceneEl.three, {camera, controls, renderer, scene});
+  controls.addEventListener('change', () => updateClipping());
   controls.enableDamping = true;
   const world = new THREE.Group();
   scene.add(world);
@@ -1062,7 +1066,7 @@ function tabOrbits3d(run, body) {
     legend.replaceChildren(...(state.color === 'type' ? TYPE_ORDER.filter(t => shown.some(o => o.type === t)).map(t =>
       h('span', {}, h('span', {class: 'swatch', style: `background:${typeColor(t)}`}), TYPE_NAMES[t])) :
       [h('span', {class: 'secondary'}, {r: 'colour: log radius (pale = ' + (isDark() ? 'outer)' : 'inner)'), w: 'colour: log weight (pale = ' + (isDark() ? 'high)' : 'low)'), lmd_z: 'colour: λz (blue −1 … red +1)'}[state.color])]));
-    overlay.textContent = `${shown.length} orbits · ${(100 * shown.reduce((s, o) => s + o.w, 0)).toFixed(1)}% of weight · extent ${fmt(extent, 3)}″`;
+    overlay.textContent = `${shown.length} orbits · ${pct(shown.reduce((s, o) => s + o.w, 0))}% of weight · extent ${fmt(extent, 3)}″`;
     drawList();
     if (refit) fit();
   }
@@ -1107,19 +1111,36 @@ function tabOrbits3d(run, body) {
     controls.target.set(0, 0, 0);
     camera.up.copy(up);
     camera.position.copy(d.clone().multiplyScalar(D));
-    camera.near = extent / 1000; camera.far = extent * 100; camera.updateProjectionMatrix();
     controls.update();
+    updateClipping();
   }
-  function fit() { setView('iso'); }
+  // frame what is shown, keeping the current viewing direction
+  function fit() {
+    const dir = camera.position.clone().sub(controls.target);
+    if (dir.lengthSq() === 0) { setView('iso'); return; }
+    controls.target.set(0, 0, 0);
+    camera.position.copy(dir.normalize().multiplyScalar(extent * 4.2));
+    controls.update();
+    updateClipping();
+  }
+  // Orbit radii span ~5 decades, so fixed clip planes cut away small orbits
+  // when zooming in: keep them proportional to the camera distance.
+  function updateClipping() {
+    const d = camera.position.distanceTo(controls.target);
+    const near = d / 1000, far = d * 1000;
+    if (Math.abs(camera.near - near) > 0.1 * near || Math.abs(camera.far - far) > 0.1 * far) {
+      camera.near = near; camera.far = far; camera.updateProjectionMatrix();
+    }
+  }
   function drawList() {
     listEl.replaceChildren(h('table', {class: 'data'},
       h('thead', {}, h('tr', {}, ['', 'family', '⟨r⟩ ″', 'λz', 'weight %', 'pro/retro'].map(t => h('th', {}, t)))),
       h('tbody', {}, orbits.slice(0, state.n).filter(o => state.types.has(o.type)).map(o => h('tr', {
         class: 'clickable' + (state.solo === o.k ? ' sel' : ''),
-        onclick: () => { state.solo = state.solo === o.k ? null : o.k; rebuild(); }},
+        onclick: () => { state.solo = state.solo === o.k ? null : o.k; rebuild(true); }},
       h('td', {}, h('span', {class: 'swatch', style: `background:${typeColor(o.type)}`})),
       h('td', {class: 'left'}, `${TYPE_NAMES[o.type]} (${o.lib})`), h('td', {}, fmt(o.r, 3)), h('td', {}, fmt(o.lmd_z, 2)),
-      h('td', {}, (100 * o.w).toFixed(2)), h('td', {}, o.lib === 'tube' ? `${(100 * o.w_pro).toFixed(1)}/${(100 * o.w_retro).toFixed(1)}` : '–'))))));
+      h('td', {}, pct(o.w)), h('td', {}, o.lib === 'tube' ? `${(100 * o.w_pro).toFixed(1)}/${(100 * o.w_retro).toFixed(1)}` : '–'))))));
   }
   function resize() {
     const w = sceneEl.clientWidth, hh = sceneEl.clientHeight;
@@ -1131,6 +1152,7 @@ function tabOrbits3d(run, body) {
   function loop() {
     raf = requestAnimationFrame(loop);
     controls.update();
+    updateClipping();
     dot.visible = state.animate;
     if (state.animate && shown.length) {
       frame++;
@@ -1145,7 +1167,7 @@ function tabOrbits3d(run, body) {
     renderer.render(scene, camera);
   }
   const ro = new ResizeObserver(resize); ro.observe(sceneEl);
-  rebuild(); resize(); fit(); loop();
+  rebuild(); resize(); setView('iso'); loop();
   cleanup.push(() => { cancelAnimationFrame(raf); ro.disconnect(); renderer.dispose(); geoms.forEach(g => g.dispose()); });
 }
 
